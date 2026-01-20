@@ -1,135 +1,146 @@
-import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/utils'
 
-export default async function AdminDashboardPage() {
-  const session = await getServerSession(authOptions)
+// Forzamos dinamismo para ver datos frescos
+export const dynamic = 'force-dynamic'
 
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    redirect('/')
-  }
-
-  const [totalOrders, totalProducts, totalRevenue, recentOrders] = await Promise.all([
-    prisma.order.count(),
-    prisma.product.count(),
-    prisma.order.aggregate({
-      _sum: {
-        total: true,
-      },
-      where: {
-        status: {
-          not: 'CANCELLED',
-        },
-      },
-    }),
-    prisma.order.findMany({
-      take: 5,
-      include: {
-        user: true,
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    }),
-  ])
+export default async function AdminPage() {
+  // Datos rápidos para el dashboard
+  const productsCount = await prisma.product.count()
+  const ordersCount = await prisma.order.count()
+  const recentOrders = await prisma.order.findMany({
+    take: 5,
+    orderBy: { createdAt: 'desc' },
+    include: { user: true }
+  })
 
   return (
-    <div className="container-custom py-12">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Panel de Administración</h1>
-        <Link href="/admin/productos/nuevo" className="btn-primary">
-          Nuevo Producto
-        </Link>
-      </div>
-
-      {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <div className="card p-6">
-          <h3 className="text-gray-600 mb-2">Total Pedidos</h3>
-          <p className="text-3xl font-bold">{totalOrders}</p>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Panel de Administración</h1>
+      
+      {/* Tarjetas de Resumen */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-blue-600 text-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-lg font-semibold opacity-90">Productos Totales</h3>
+          <p className="text-4xl font-bold mt-2">{productsCount}</p>
         </div>
-        <div className="card p-6">
-          <h3 className="text-gray-600 mb-2">Total Productos</h3>
-          <p className="text-3xl font-bold">{totalProducts}</p>
+        <div className="bg-green-600 text-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-lg font-semibold opacity-90">Pedidos Totales</h3>
+          <p className="text-4xl font-bold mt-2">{ordersCount}</p>
         </div>
-        <div className="card p-6">
-          <h3 className="text-gray-600 mb-2">Ingresos Totales</h3>
-          <p className="text-3xl font-bold">
-            {formatPrice(totalRevenue._sum.total || 0)}
-          </p>
+        <div className="bg-purple-600 text-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold opacity-90">Ingresos (Mes)</h3>
+            <p className="text-4xl font-bold mt-2">S/ --.--</p>
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <Link href="/admin/productos" className="card p-6 hover:shadow-lg transition">
-          <h2 className="text-xl font-bold mb-2">Gestionar Productos</h2>
-          <p className="text-gray-600">CRUD completo de productos</p>
-        </Link>
-        <Link href="/admin/pedidos" className="card p-6 hover:shadow-lg transition">
-          <h2 className="text-xl font-bold mb-2">Gestionar Pedidos</h2>
-          <p className="text-gray-600">Ver y actualizar pedidos</p>
-        </Link>
-      </div>
-
-      {/* Recent Orders */}
-      <div className="card p-6">
-        <h2 className="text-xl font-bold mb-4">Pedidos Recientes</h2>
-        {recentOrders.length === 0 ? (
-          <p className="text-gray-500">No hay pedidos</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">ID</th>
-                  <th className="text-left py-2">Cliente</th>
-                  <th className="text-left py-2">Total</th>
-                  <th className="text-left py-2">Estado</th>
-                  <th className="text-left py-2">Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b">
-                    <td className="py-2">
-                      <Link
-                        href={`/admin/pedidos/${order.id}`}
-                        className="text-primary-600 hover:underline"
-                      >
-                        {order.id.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td className="py-2">{order.user.name}</td>
-                    <td className="py-2">{formatPrice(order.total)}</td>
-                    <td className="py-2">
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          order.status === 'DELIVERED'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="py-2 text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Accesos Rápidos</h2>
+      
+      {/* BOTONES DE GESTIÓN */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        
+        {/* Botón Productos */}
+        <Link 
+          href="/admin/productos"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center justify-center text-center group"
+        >
+          <div className="p-4 bg-blue-100 rounded-full mb-3 group-hover:bg-blue-200 text-blue-600">
+             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
           </div>
-        )}
+          <span className="font-bold text-gray-700 group-hover:text-blue-600">Gestionar Productos</span>
+        </Link>
+
+        {/* Botón Pedidos */}
+        <Link 
+          href="/admin/pedidos"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all flex flex-col items-center justify-center text-center group"
+        >
+          <div className="p-4 bg-green-100 rounded-full mb-3 group-hover:bg-green-200 text-green-600">
+             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+          </div>
+          <span className="font-bold text-gray-700 group-hover:text-green-600">Ver Pedidos</span>
+        </Link>
+
+        {/* 👇 NUEVO BOTÓN: CONFIGURAR HERO */}
+        <Link 
+          href="/admin/configuracion"
+          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all flex flex-col items-center justify-center text-center group"
+        >
+          <div className="p-4 bg-purple-100 rounded-full mb-3 group-hover:bg-purple-200 text-purple-600">
+             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </div>
+          <span className="font-bold text-gray-700 group-hover:text-purple-600">Editar Portada</span>
+        </Link>
+
+        {/* Botón Volver a Tienda */}
+        <Link 
+          href="/"
+          className="bg-gray-50 p-6 rounded-xl shadow-inner border border-gray-200 hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center group"
+        >
+           <div className="p-4 bg-gray-200 rounded-full mb-3 text-gray-600">
+             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+          </div>
+          <span className="font-bold text-gray-600">Ir a la Tienda</span>
+        </Link>
+
+      </div>
+
+      {/* Tabla Resumen de Últimos Pedidos */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b">
+            <h3 className="font-bold text-gray-700">Últimos Pedidos Recibidos</h3>
+        </div>
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {recentOrders.map((order) => (
+                        <tr key={order.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {order.id.slice(-6).toUpperCase()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {order.shippingName || order.user.name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
+                                {formatPrice(order.total)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 
+                                      order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
+                                      'bg-gray-100 text-gray-800'}`}>
+                                    {order.status}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(order.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-900">
+                                <Link href={`/admin/pedidos/${order.id}`}>Ver detalle</Link>
+                            </td>
+                        </tr>
+                    ))}
+                    {recentOrders.length === 0 && (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                                No hay pedidos recientes.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
       </div>
     </div>
   )

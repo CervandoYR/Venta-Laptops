@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// This is your Prisma schema file
 
 generator client {
   provider = "prisma-client-js"
@@ -8,14 +7,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-// 👇 1. NUEVO ENUM PARA LA CONDICIÓN
-enum ProductCondition {
-  NEW         // Nuevo sellado
-  LIKE_NEW    // Como nuevo / Open Box
-  USED        // Usado / Segunda mano
-  REFURBISHED // Reacondicionado
 }
 
 enum UserRole {
@@ -29,6 +20,26 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum ProductCondition {
+  NEW
+  LIKE_NEW
+  USED
+  REFURBISHED
+}
+
+// 👇 TABLA DE CONFIGURACIÓN (Actualizada)
+model StoreConfig {
+  id             String   @id @default(cuid())
+  heroTitle      String   @default("Laptops Premium para Profesionales")
+  heroText       String   @default("Encuentra la laptop perfecta para tu trabajo. Las mejores marcas, precios competitivos y envío gratis.")
+  heroImage      String   @default("https://images.unsplash.com/photo-1531297424005-06342e7f3947?w=1200&q=80")
+  
+  // Nuevo campo para el carrusel
+  carouselImages String[] 
+
+  updatedAt      DateTime @updatedAt
 }
 
 model User {
@@ -58,16 +69,24 @@ model Product {
   brand       String
   model       String
 
-  // 👇 2. AQUÍ ESTÁN LOS CAMPOS DE CONDICIÓN
+  // Condición
   condition        ProductCondition @default(NEW)
-  conditionDetails String?          @db.Text // Ej: "Pequeño rayón en tapa", "Batería al 85%"
+  conditionDetails String?          @db.Text 
 
-  // Especificaciones (Opcionales para vender Mouse/Teclados)
-  cpu         String?  
-  ram         String?
-  storage     String?
-  display     String?
-  gpu         String?
+  // Specs
+  cpu          String?  
+  ram          String?
+  storage      String?
+  display      String?
+  gpu          String?
+  
+  // Detalles Extra
+  connectivity String?
+  ports        String?
+  battery      String?
+  dimensions   String?
+  weight       String?
+  sound        String?
 
   stock       Int      @default(0)
   featured    Boolean  @default(false)
@@ -78,10 +97,7 @@ model Product {
   cartItems   CartItem[]
 
   @@index([slug])
-  @@index([brand])
-  @@index([active])
   @@index([category])
-  @@index([condition]) // Para filtrar por "Solo Nuevos" o "Solo Usados"
 }
 
 model CartItem {
@@ -95,7 +111,6 @@ model CartItem {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
-  @@index([userId])
 }
 
 model Order {
@@ -114,9 +129,6 @@ model Order {
   updatedAt             DateTime    @updatedAt
   user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items                 OrderItem[]
-
-  @@index([userId])
-  @@index([status])
 }
 
 model OrderItem {
@@ -127,6 +139,4 @@ model OrderItem {
   price     Float
   product   Product @relation(fields: [productId], references: [id])
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
 }

@@ -7,9 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Product } from '@prisma/client'
 import { slugify } from '@/lib/utils'
-import ImageUpload from '@/components/admin/ImageUpload' // 👈 Ahora sí lo importamos
+import ImageUpload from '@/components/admin/ImageUpload'
 
-// Esquema de validación (Flexible para todos los productos)
+// Esquema de validación completo
 const productSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   slug: z.string().min(3, 'El slug es requerido'),
@@ -25,14 +25,24 @@ const productSchema = z.object({
   condition: z.enum(['NEW', 'LIKE_NEW', 'USED', 'REFURBISHED']).default('NEW'),
   conditionDetails: z.string().optional(),
 
-  // Specs Opcionales (Solo si es compu)
+  // Specs
   brand: z.string().min(1, 'La marca es requerida'),
   model: z.string().min(1, 'El modelo es requerido'),
+  
+  // Specs Técnicas (Opcionales)
   cpu: z.string().optional(),
   ram: z.string().optional(),
   storage: z.string().optional(),
   display: z.string().optional(),
   gpu: z.string().optional(),
+
+  // Specs Detalladas (NUEVAS)
+  connectivity: z.string().optional(),
+  ports: z.string().optional(),
+  battery: z.string().optional(),
+  dimensions: z.string().optional(),
+  weight: z.string().optional(),
+  sound: z.string().optional(),
 
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
@@ -60,26 +70,27 @@ export function ProductForm({ product }: ProductFormProps) {
     defaultValues: product
       ? {
           ...product,
-          // Aseguramos que los campos opcionales tengan string vacío si son null
-          cpu: product.cpu || '',
-          ram: product.ram || '',
-          storage: product.storage || '',
-          display: product.display || '',
-          gpu: product.gpu || '',
+          // Mapeo seguro para evitar nulls
+          cpu: (product as any).cpu || '', 
+          ram: (product as any).ram || '', 
+          storage: (product as any).storage || '', 
+          display: (product as any).display || '', 
+          gpu: (product as any).gpu || '',
+          connectivity: (product as any).connectivity || '', 
+          ports: (product as any).ports || '',
+          battery: (product as any).battery || '', 
+          dimensions: (product as any).dimensions || '',
+          weight: (product as any).weight || '', 
+          sound: (product as any).sound || '',
+          
           category: (product as any).category || 'Laptops',
           condition: ((product as any).condition as any) || 'NEW',
           conditionDetails: (product as any).conditionDetails || '',
           images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
         }
       : {
-          slug: '',
-          featured: false,
-          active: true,
-          stock: 0,
-          category: 'Laptops',
-          condition: 'NEW',
-          images: [],
-        },
+          slug: '', featured: false, active: true, stock: 0, category: 'Laptops', condition: 'NEW', images: [],
+      }
   })
 
   // Auto-generar slug
@@ -92,7 +103,7 @@ export function ProductForm({ product }: ProductFormProps) {
 
   // Lógica para mostrar/ocultar specs
   const currentCategory = watch('category')
-  const showSpecs = currentCategory === 'Laptops' || currentCategory === 'PC Escritorio'
+  const showSpecs = ['Laptops', 'PC Escritorio', 'Monitores', 'All in One'].includes(currentCategory)
   const currentCondition = watch('condition')
   const currentImages = watch('images')
 
@@ -101,17 +112,10 @@ export function ProductForm({ product }: ProductFormProps) {
     setLoading(true)
 
     try {
-      // Preparamos los datos para enviar
-      const payload = {
-        ...data,
-        // Usamos la primera imagen del array como la imagen principal
-        image: data.images[0], 
-      }
+      // Preparamos los datos
+      const payload = { ...data, image: data.images[0] } // Compatibilidad
 
-      const url = product
-        ? `/api/admin/products/${product.id}`
-        : '/api/admin/products'
-
+      const url = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
       const method = product ? 'PATCH' : 'POST'
 
       const response = await fetch(url, {
@@ -121,10 +125,7 @@ export function ProductForm({ product }: ProductFormProps) {
       })
 
       const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al guardar el producto')
-      }
+      if (!response.ok) throw new Error(result.error || 'Error al guardar')
 
       router.push('/admin/productos')
       router.refresh()
@@ -135,25 +136,13 @@ export function ProductForm({ product }: ProductFormProps) {
     }
   }
 
-  // Funciones para manejar el componente ImageUpload
-  const handleImageChange = (url: string) => {
-    // Agregamos la nueva URL al array existente
-    const newImages = [...currentImages, url]
-    setValue('images', newImages, { shouldValidate: true })
-  }
-
-  const handleImageRemove = (urlToRemove: string) => {
-    const newImages = currentImages.filter(img => img !== urlToRemove)
-    setValue('images', newImages, { shouldValidate: true })
-  }
+  // Funciones para ImageUpload
+  const handleImageChange = (url: string) => setValue('images', [...currentImages, url], { shouldValidate: true })
+  const handleImageRemove = (url: string) => setValue('images', currentImages.filter(i => i !== url), { shouldValidate: true })
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
+      {error && <div className="bg-red-50 text-red-700 p-4 rounded">{error}</div>}
 
       {/* SECCIÓN DE IMÁGENES */}
       <div>
@@ -163,21 +152,18 @@ export function ProductForm({ product }: ProductFormProps) {
             onChange={handleImageChange}
             onRemove={handleImageRemove}
         />
-        {errors.images && (
-            <p className="text-red-600 text-sm mt-1">{errors.images.message}</p>
-        )}
+        {errors.images && <p className="text-red-600 text-sm mt-1">{errors.images.message}</p>}
       </div>
 
       {/* INFORMACIÓN BÁSICA */}
       <div className="grid md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+          <label className="block text-sm font-medium mb-1">Nombre *</label>
           <input {...register('name')} className="w-full p-2 border rounded-md" />
           {errors.name && <p className="text-red-600 text-sm">{errors.name.message}</p>}
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL) *</label>
+          <label className="block text-sm font-medium mb-1">Slug (URL) *</label>
           <input {...register('slug')} className="w-full p-2 border rounded-md" />
           {errors.slug && <p className="text-red-600 text-sm">{errors.slug.message}</p>}
         </div>
@@ -186,20 +172,19 @@ export function ProductForm({ product }: ProductFormProps) {
       {/* CATEGORÍA Y CONDICIÓN */}
       <div className="grid md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-md border">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+          <label className="block text-sm font-medium mb-1">Categoría</label>
           <select {...register('category')} className="w-full p-2 border rounded-md bg-white">
             <option value="Laptops">Laptops</option>
             <option value="PC Escritorio">PC Escritorio</option>
             <option value="Monitores">Monitores</option>
-            <option value="Periféricos">Periféricos (Mouse/Teclado)</option>
+            <option value="Periféricos">Periféricos</option>
             <option value="Audio">Audio</option>
             <option value="Componentes">Componentes</option>
             <option value="Otros">Otros</option>
           </select>
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Condición</label>
+          <label className="block text-sm font-medium mb-1">Condición</label>
           <select {...register('condition')} className="w-full p-2 border rounded-md bg-white">
             <option value="NEW">Nuevo (Sellado)</option>
             <option value="LIKE_NEW">Como Nuevo (Open Box)</option>
@@ -209,119 +194,69 @@ export function ProductForm({ product }: ProductFormProps) {
         </div>
       </div>
 
-      {/* DETALLES DE CONDICIÓN (Solo si no es nuevo) */}
       {currentCondition !== 'NEW' && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-            <label className="block text-sm font-bold text-yellow-800 mb-1">
-                ⚠️ Detalles del estado (Honestidad con el cliente)
-            </label>
-            <input 
-                {...register('conditionDetails')} 
-                placeholder="Ej: Rayón en la tapa, batería al 85%, sin caja..." 
-                className="w-full p-2 border border-yellow-300 rounded-md text-sm" 
-            />
+            <label className="block text-sm font-bold text-yellow-800 mb-1">Detalles del estado</label>
+            <input {...register('conditionDetails')} className="w-full p-2 border border-yellow-300 rounded-md" placeholder="Ej: Rayón en tapa..." />
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+        <label className="block text-sm font-medium mb-1">Descripción *</label>
         <textarea {...register('description')} rows={4} className="w-full p-2 border rounded-md" />
         {errors.description && <p className="text-red-600 text-sm">{errors.description.message}</p>}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Precio (S/) *</label>
-          <input 
-            type="number" 
-            step="0.01" 
-            {...register('price', { valueAsNumber: true })} 
-            className="w-full p-2 border rounded-md" 
-          />
+          <label className="block text-sm font-medium mb-1">Precio (S/) *</label>
+          <input type="number" step="0.01" {...register('price', { valueAsNumber: true })} className="w-full p-2 border rounded-md" />
           {errors.price && <p className="text-red-600 text-sm">{errors.price.message}</p>}
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
-          <input 
-            type="number" 
-            {...register('stock', { valueAsNumber: true })} 
-            className="w-full p-2 border rounded-md" 
-          />
+          <label className="block text-sm font-medium mb-1">Stock *</label>
+          <input type="number" {...register('stock', { valueAsNumber: true })} className="w-full p-2 border rounded-md" />
           {errors.stock && <p className="text-red-600 text-sm">{errors.stock.message}</p>}
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
-          <input {...register('brand')} className="w-full p-2 border rounded-md" />
-          {errors.brand && <p className="text-red-600 text-sm">{errors.brand.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
-          <input {...register('model')} className="w-full p-2 border rounded-md" />
-          {errors.model && <p className="text-red-600 text-sm">{errors.model.message}</p>}
-        </div>
+        <div><label className="block text-sm font-medium mb-1">Marca *</label><input {...register('brand')} className="w-full p-2 border rounded-md" /></div>
+        <div><label className="block text-sm font-medium mb-1">Modelo *</label><input {...register('model')} className="w-full p-2 border rounded-md" /></div>
       </div>
 
-      {/* ESPECIFICACIONES TÉCNICAS (Solo si es Laptop/PC) */}
+      {/* ESPECIFICACIONES TÉCNICAS */}
       {showSpecs && (
         <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Especificaciones Técnicas</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Especificaciones Técnicas (Opcionales)</h3>
             <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Procesador (CPU)</label>
-                    <input {...register('cpu')} className="w-full p-2 border rounded-md" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Memoria RAM</label>
-                    <input {...register('ram')} className="w-full p-2 border rounded-md" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Almacenamiento</label>
-                    <input {...register('storage')} className="w-full p-2 border rounded-md" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pantalla</label>
-                    <input {...register('display')} className="w-full p-2 border rounded-md" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gráficos (GPU)</label>
-                    <input {...register('gpu')} className="w-full p-2 border rounded-md" />
-                </div>
+                <div><label className="block text-sm font-medium mb-1">Procesador (CPU)</label><input {...register('cpu')} className="w-full p-2 border rounded-md" placeholder="Ej: Core i5" /></div>
+                <div><label className="block text-sm font-medium mb-1">Memoria RAM</label><input {...register('ram')} className="w-full p-2 border rounded-md" placeholder="Ej: 16GB" /></div>
+                <div><label className="block text-sm font-medium mb-1">Almacenamiento</label><input {...register('storage')} className="w-full p-2 border rounded-md" placeholder="Ej: 512GB SSD" /></div>
+                <div><label className="block text-sm font-medium mb-1">Pantalla</label><input {...register('display')} className="w-full p-2 border rounded-md" placeholder='Ej: 15.6" HD' /></div>
+                <div><label className="block text-sm font-medium mb-1">Gráficos (GPU)</label><input {...register('gpu')} className="w-full p-2 border rounded-md" placeholder="Ej: RTX 4060" /></div>
+                
+                {/* NUEVOS CAMPOS */}
+                <div className="col-span-2 border-t pt-4 mt-2"><p className="text-sm font-semibold text-gray-500">Detalles Adicionales</p></div>
+                
+                <div><label className="block text-sm font-medium mb-1">Conectividad</label><input {...register('connectivity')} className="w-full p-2 border rounded-md" placeholder="Wi-Fi 6, BT 5.3" /></div>
+                <div><label className="block text-sm font-medium mb-1">Puertos</label><input {...register('ports')} className="w-full p-2 border rounded-md" placeholder="HDMI, USB-C" /></div>
+                <div><label className="block text-sm font-medium mb-1">Batería</label><input {...register('battery')} className="w-full p-2 border rounded-md" placeholder="3 celdas, 41Wh" /></div>
+                <div><label className="block text-sm font-medium mb-1">Sonido</label><input {...register('sound')} className="w-full p-2 border rounded-md" placeholder="Altavoces Estéreo" /></div>
+                <div><label className="block text-sm font-medium mb-1">Dimensiones</label><input {...register('dimensions')} className="w-full p-2 border rounded-md" placeholder="36x23x1.8 cm" /></div>
+                <div><label className="block text-sm font-medium mb-1">Peso</label><input {...register('weight')} className="w-full p-2 border rounded-md" placeholder="1.52 kg" /></div>
             </div>
         </div>
       )}
 
-      {/* ESTADO */}
       <div className="flex gap-6 border-t pt-6">
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input type="checkbox" {...register('featured')} className="rounded w-4 h-4 text-blue-600" />
-          <span className="text-sm font-medium text-gray-900">Producto Destacado</span>
-        </label>
-
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input type="checkbox" {...register('active')} className="rounded w-4 h-4 text-blue-600" />
-          <span className="text-sm font-medium text-gray-900">Activo (Visible en tienda)</span>
-        </label>
+        <label className="flex items-center space-x-2"><input type="checkbox" {...register('featured')} className="rounded" /><span className="text-sm font-medium">Destacado</span></label>
+        <label className="flex items-center space-x-2"><input type="checkbox" {...register('active')} className="rounded" /><span className="text-sm font-medium">Activo</span></label>
       </div>
 
       <div className="flex justify-end gap-4 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
-        >
-          {loading ? 'Guardando...' : (product ? 'Actualizar Producto' : 'Crear Producto')}
-        </button>
+        <button type="button" onClick={() => router.back()} className="px-4 py-2 border rounded hover:bg-gray-50">Cancelar</button>
+        <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">{loading ? 'Guardando...' : (product ? 'Actualizar' : 'Crear')}</button>
       </div>
     </form>
   )
