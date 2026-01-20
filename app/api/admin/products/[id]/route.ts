@@ -1,59 +1,82 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { revalidatePath } from 'next/cache' // 👈 IMPORTANTE: Agrega esto
 
-export async function PATCH(
+// DELETE: Eliminar producto
+export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
   try {
-    const body = await request.json()
+    const session = await getServerSession(authOptions)
 
-    const product = await prisma.product.update({
-      where: { id: params.id },
-      data: {
-        ...body,
-        images: body.images || [],
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const product = await prisma.product.delete({
+      where: {
+        id: params.id,
       },
     })
 
-    return NextResponse.json({ product })
-  } catch (error: any) {
-    console.error('Error updating product:', error)
+    // 👇 ESTO OBLIGA A ACTUALIZAR LA PÁGINA
+    revalidatePath('/admin/productos') 
+    revalidatePath('/') // También actualiza el inicio por si el producto salía ahí
+    
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error('Error al eliminar:', error)
+    if ((error as any).code === 'P2003') {
+       return NextResponse.json(
+        { error: 'No se puede eliminar porque tiene pedidos asociados.' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
-      { error: error.message || 'Error al actualizar el producto' },
+      { error: 'Error interno al eliminar' },
       { status: 500 }
     )
   }
 }
 
-export async function DELETE(
+// PATCH: Actualizar producto
+export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
   try {
-    await prisma.product.delete({
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    
+    const dataToUpdate = {
+        ...body,
+        price: parseFloat(body.price),
+        stock: parseInt(body.stock),
+    }
+
+    const product = await prisma.product.update({
       where: { id: params.id },
+      data: dataToUpdate,
     })
 
-    return NextResponse.json({ message: 'Producto eliminado' })
-  } catch (error: any) {
-    console.error('Error deleting product:', error)
+    //ESTO OBLIGA A ACTUALIZAR LA PÁGINA
+    revalidatePath('/admin/productos') 
+    revalidatePath(`/admin/productos/${params.id}`) 
+    revalidatePath('/')
+
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error(error)
     return NextResponse.json(
-      { error: error.message || 'Error al eliminar el producto' },
+      { error: 'Error al actualizar el producto' },
       { status: 500 }
     )
   }

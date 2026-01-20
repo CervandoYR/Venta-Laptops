@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
         images: body.images || [],
       },
     })
+
+    revalidatePath('/admin/productos')
+    revalidatePath('/') 
 
     return NextResponse.json({ product }, { status: 201 })
   } catch (error: any) {
