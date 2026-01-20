@@ -13,15 +13,11 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="card hover:shadow-lg transition-shadow">
         <div className="relative h-48 bg-gray-100">
           <Image
-            src={product.image || 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Sin+Imagen'}
+            src={product.image || '/placeholder-laptop.jpg'}
             alt={product.name}
             fill
             className="object-contain p-4"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement
-              target.src = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Sin+Imagen'
-            }}
           />
           {product.featured && (
             <span className="absolute top-2 right-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">

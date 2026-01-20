@@ -48,12 +48,14 @@ export default async function HomePage() {
                 Ver Catálogo
               </Link>
             </div>
-            <div className="relative h-64 md:h-96 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <div className="text-white text-center p-8">
-                <p className="text-4xl mb-2">💻</p>
-                <p className="text-2xl font-bold">Laptops Premium</p>
-                <p className="text-primary-100 mt-2">La mejor tecnología para tu trabajo</p>
-              </div>
+            <div className="relative h-64 md:h-96">
+              <Image
+                src="/hero-laptop.jpg"
+                alt="Laptops Premium"
+                fill
+                className="object-contain rounded-lg"
+                priority
+              />
             </div>
           </div>
         </div>

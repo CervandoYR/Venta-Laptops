@@ -58,15 +58,12 @@ export default function CartPage() {
                   className="relative w-24 h-24 bg-gray-100 rounded flex-shrink-0"
                 >
                   <Image
-                    src={item.product.image || 'https://via.placeholder.com/96x96/e5e7eb/6b7280?text=Producto'}
+                    src={item.product.image || '/placeholder-laptop.jpg'}
                     alt={item.product.name}
                     fill
                     className="object-contain p-2"
                     sizes="96px"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.src = 'https://via.placeholder.com/96x96/e5e7eb/6b7280?text=Producto'
-                    }}
+                    
                   />
                 </Link>
 

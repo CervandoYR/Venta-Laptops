@@ -72,16 +72,13 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Imagen */}
           <div className="relative h-96 md:h-[600px] bg-gray-100 rounded-lg overflow-hidden">
             <Image
-              src={product.image || 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=Sin+Imagen'}
+              src={product.image || '/placeholder-laptop.jpg'}
               alt={product.name}
               fill
               className="object-contain p-8"
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = 'https://via.placeholder.com/800x600/e5e7eb/6b7280?text=Sin+Imagen'
-              }}
+              
             />
           </div>
 
