@@ -1,4 +1,5 @@
 // This is your Prisma schema file
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -29,19 +30,20 @@ enum ProductCondition {
   REFURBISHED
 }
 
-// 👇 TABLA DE CONFIGURACIÓN (Actualizada)
+// 👇 TABLA DE CONFIGURACIÓN DE LA TIENDA
 model StoreConfig {
   id             String   @id @default(cuid())
   heroTitle      String   @default("Laptops Premium para Profesionales")
   heroText       String   @default("Encuentra la laptop perfecta para tu trabajo. Las mejores marcas, precios competitivos y envío gratis.")
   heroImage      String   @default("https://images.unsplash.com/photo-1531297424005-06342e7f3947?w=1200&q=80")
   
-  // Nuevo campo para el carrusel
+  // Array de imágenes para el carrusel
   carouselImages String[] 
 
   updatedAt      DateTime @updatedAt
 }
 
+// 👇 MODELO DE USUARIO ACTUALIZADO
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -49,6 +51,11 @@ model User {
   password      String
   role          UserRole  @default(USER)
   image         String?
+  
+  // Campos agregados para el Perfil
+  address       String?
+  phone         String?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   orders        Order[]
@@ -73,7 +80,7 @@ model Product {
   condition        ProductCondition @default(NEW)
   conditionDetails String?          @db.Text 
 
-  // Specs
+  // Specs Técnicas
   cpu          String?  
   ram          String?
   storage      String?
@@ -97,6 +104,7 @@ model Product {
   cartItems   CartItem[]
 
   @@index([slug])
+  @@index([brand])
   @@index([category])
 }
 
@@ -111,6 +119,7 @@ model CartItem {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
+  @@index([userId])
 }
 
 model Order {
@@ -129,6 +138,9 @@ model Order {
   updatedAt             DateTime    @updatedAt
   user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items                 OrderItem[]
+
+  @@index([userId])
+  @@index([status])
 }
 
 model OrderItem {
@@ -139,4 +151,6 @@ model OrderItem {
   price     Float
   product   Product @relation(fields: [productId], references: [id])
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
