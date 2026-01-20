@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ProductCard } from '@/components/products/ProductCard'
 import Image from 'next/image'
 import ImageCarousel from '@/components/ui/ImageCarousel'
-//export const revalidate = 3600 // Revalidar cada hora
+export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const featuredProducts = await prisma.product.findMany({
