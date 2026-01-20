@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { ProductCard } from '@/components/products/ProductCard'
 import Image from 'next/image'
-
+import ImageCarousel from '@/components/ui/ImageCarousel'
 export const revalidate = 3600 // Revalidar cada hora
 
 export default async function HomePage() {
@@ -48,15 +48,10 @@ export default async function HomePage() {
                 Ver Catálogo
               </Link>
             </div>
-            <div className="relative h-64 md:h-96">
-              <Image
-                src="/hero-laptop.jpg"
-                alt="Laptops Premium"
-                fill
-                className="object-contain rounded-lg"
-                priority
-              />
-            </div>
+            {/* Columna de Imagen -> AQUI PONES EL CARRUSEL */}
+  <div className="h-[400px] w-full"> {/* Define una altura fija para que se vea bien */}
+    <ImageCarousel />
+  </div>
           </div>
         </div>
       </section>
