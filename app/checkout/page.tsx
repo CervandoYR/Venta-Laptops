@@ -4,14 +4,17 @@ import { useCart } from '@/contexts/CartContext'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ShieldCheck, UserCheck, Truck, MessageCircle, ArrowRight, Tag } from 'lucide-react'
+import { ShieldCheck, UserCheck, Truck, MessageCircle, ArrowRight, Tag, Loader2 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 
 export default function CheckoutPage() {
-  const { items, itemCount } = useCart()
+  const { items, itemCount, clearCart } = useCart()
   const { data: session } = useSession()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // Estado de carga
 
   // --- CONFIGURACIÓN ENVÍO ---
   const FREE_SHIPPING_THRESHOLD = 500
@@ -20,7 +23,6 @@ export default function CheckoutPage() {
   // Cálculos de Totales
   const cartTotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
   
-  // 👇 NUEVO: Calcular el precio original total (para mostrar el ahorro)
   const totalOriginalPrice = items.reduce((sum, item) => {
     const original = item.product.originalPrice || item.product.price
     return sum + (original * item.quantity)
@@ -50,29 +52,60 @@ export default function CheckoutPage() {
   const shippingPrice = isFreeShipping ? 0 : SHIPPING_COST
   const finalTotal = cartTotal + shippingPrice
 
-  // --- GENERAR LINK WHATSAPP ---
-  const generateWhatsAppLink = () => {
-    const phone = '51926870309' // ⚠️ PON TU NÚMERO DE VENTAS AQUÍ
-    
-    const productList = items.map(item => `▪️ ${item.product.name} (x${item.quantity})`).join('\n')
-    const customerName = session?.user?.name || 'Cliente'
+  // --- FUNCIÓN INTELIGENTE: GUARDAR Y REDIRIGIR ---
+  const handleProcessOrder = async () => {
+    setIsProcessing(true)
 
-    const shippingText = isFreeShipping ? 'GRATIS (Lima)' : `S/. ${SHIPPING_COST.toFixed(2)} (Lima)`
-    const totalFormatted = formatPrice(finalTotal).replace('S/', 'S/.')
-    const savingsText = totalSavings > 0 ? `\n🎉 ¡Estoy ahorrando S/. ${totalSavings.toFixed(2)} en esta compra!` : ''
+    try {
+      // 1. Guardar orden en Base de Datos
+      const response = await fetch('/api/checkout/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
 
-    const message = `👋 Hola Servitek, soy *${customerName}*!
+      const data = await response.json()
 
-Quiero finalizar mi compra de:
+      if (!response.ok) throw new Error(data.error || 'Error al procesar')
+
+      // 2. Generar Link de WhatsApp con el ID de la orden real
+      const phone = '51926870309'
+      const customerName = session?.user?.name || 'Cliente'
+      const orderCode = data.orderNumber // Código corto (ej: A1B2C3)
+      
+      const productList = items.map(item => `▪️ ${item.product.name} (x${item.quantity})`).join('\n')
+      const shippingText = isFreeShipping ? 'GRATIS (Lima)' : `S/. ${SHIPPING_COST.toFixed(2)} (Lima)`
+      const totalFormatted = formatPrice(finalTotal).replace('S/', 'S/.')
+      
+      const message = `👋 Hola Servitek, soy *${customerName}*!
+      
+Acabo de generar el *Pedido #${orderCode}* en la web.
+
+Detalle:
 ${productList}
 
 📦 Subtotal: ${formatPrice(cartTotal).replace('S/', 'S/.')}
 🚚 Envío: ${shippingText}
-💰 *Total Final: ${totalFormatted}*${savingsText}
+💰 *Total Final: ${totalFormatted}*
 
-Quedo atento para coordinar el pago. Gracias!`
+Quedo atento para coordinar el pago y envío. Gracias!`
 
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+
+      // 3. Limpiar carrito visual (el de la DB ya se limpió en la API)
+      clearCart()
+
+      // 4. Abrir WhatsApp en nueva pestaña
+      window.open(whatsappUrl, '_blank')
+
+      // 5. Redirigir al usuario a "Mis Pedidos" para que vea su orden guardada
+      router.push('/pedidos')
+
+    } catch (error) {
+      console.error(error)
+      alert('Hubo un problema al procesar tu pedido. Inténtalo de nuevo.')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -84,7 +117,7 @@ Quedo atento para coordinar el pago. Gracias!`
             ¡Excelente elección! 🚀
           </h1>
           <p className="text-gray-600 text-lg">
-            Finaliza tu compra de forma segura vía WhatsApp.
+            Finaliza tu compra de forma segura con un asesor.
           </p>
         </div>
 
@@ -109,7 +142,6 @@ Quedo atento para coordinar el pago. Gracias!`
                     <h3 className="text-sm font-semibold text-gray-800 line-clamp-2">{item.product.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                        <p className="text-xs text-gray-500">Cant: {item.quantity}</p>
-                       {/* Mostrar descuento individual si existe */}
                        {item.product.originalPrice && item.product.originalPrice > item.product.price && (
                          <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">
                            -{Math.round(((item.product.originalPrice - item.product.price) / item.product.originalPrice) * 100)}%
@@ -118,7 +150,6 @@ Quedo atento para coordinar el pago. Gracias!`
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    {/* Precio original tachado pequeño */}
                     {item.product.originalPrice && item.product.originalPrice > item.product.price && (
                         <span className="text-xs text-gray-400 line-through">
                             {formatPrice(item.product.originalPrice * item.quantity)}
@@ -133,10 +164,6 @@ Quedo atento para coordinar el pago. Gracias!`
             </div>
 
             <div className="border-t mt-6 pt-4 space-y-2">
-              
-              {/* DESGLOSE DE PRECIOS */}
-              
-              {/* 1. Precio de Lista (Solo si hay ahorro) */}
               {totalSavings > 0 && (
                 <div className="flex justify-between text-gray-400 text-sm">
                   <span>Precio de Lista</span>
@@ -144,7 +171,6 @@ Quedo atento para coordinar el pago. Gracias!`
                 </div>
               )}
 
-              {/* 2. Descuento (Solo si hay ahorro) */}
               {totalSavings > 0 && (
                 <div className="flex justify-between text-red-600 font-medium text-sm">
                   <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> Descuento</span>
@@ -152,13 +178,11 @@ Quedo atento para coordinar el pago. Gracias!`
                 </div>
               )}
 
-              {/* 3. Subtotal Real */}
               <div className="flex justify-between text-gray-800 font-semibold">
                 <span>Subtotal</span>
                 <span>{formatPrice(cartTotal)}</span>
               </div>
               
-              {/* 4. Envío */}
               <div className="flex justify-between items-center text-sm pt-2">
                 <span className="text-gray-600">Costo de Envío (Lima)</span>
                 {isFreeShipping ? (
@@ -179,16 +203,14 @@ Quedo atento para coordinar el pago. Gracias!`
                 <span className="italic">Pago en destino</span>
               </div>
 
-              {/* 5. TOTAL FINAL */}
               <div className="flex justify-between text-2xl font-extrabold text-blue-900 mt-4 pt-4 border-t border-dashed">
                 <span>Total a Pagar</span>
                 <span>{formatPrice(finalTotal)}</span>
               </div>
               
-              {/* Mensaje de ahorro final */}
               {totalSavings > 0 && (
                 <div className="text-center mt-2">
-                    <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                    <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
                         ¡Estás ahorrando {formatPrice(totalSavings)}! 🤑
                     </span>
                 </div>
@@ -202,7 +224,7 @@ Quedo atento para coordinar el pago. Gracias!`
 
             <h2 className="text-2xl font-bold mb-4 relative z-10">Confirmar con un Asesor</h2>
             <p className="text-blue-100 mb-8 relative z-10 leading-relaxed">
-              Un experto de Servitek validará el stock en tiempo real y coordinará la entrega contigo.
+              Al confirmar, tu pedido quedará <strong>reservado en nuestro sistema</strong> y serás redirigido a WhatsApp para coordinar el pago.
             </p>
 
             <div className="space-y-4 mb-8 relative z-10">
@@ -233,19 +255,28 @@ Quedo atento para coordinar el pago. Gracias!`
               </div>
             </div>
 
-            <a 
-              href={generateWhatsAppLink()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group w-full bg-green-500 hover:bg-green-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all flex items-center justify-center gap-3 relative z-10 animate-pulse-slow"
+            {/* BOTÓN INTELIGENTE: Guarda y luego abre WhatsApp */}
+            <button 
+              onClick={handleProcessOrder}
+              disabled={isProcessing}
+              className="group w-full bg-green-500 hover:bg-green-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all flex items-center justify-center gap-3 relative z-10 animate-pulse-slow disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <MessageCircle className="w-6 h-6 fill-current" />
-              <span>Contactar Asesor Ahora</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </a>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>Procesando Pedido...</span>
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-6 h-6 fill-current" />
+                  <span>Confirmar y Contactar</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
 
             <p className="text-center text-xs text-blue-300 mt-4 opacity-80">
-              * Serás redirigido a WhatsApp con el detalle listo para enviar.
+              * Se generará tu Orden de Compra y abrirá WhatsApp.
             </p>
           </div>
 

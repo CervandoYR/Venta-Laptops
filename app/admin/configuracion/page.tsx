@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import ImageUpload from '@/components/admin/ImageUpload'
 import { useRouter } from 'next/navigation'
+import AdminPageHeader from '@/components/admin/AdminPageHeader' // 👇 Importamos el header
 
 export default function ConfigPage() {
   const router = useRouter()
@@ -13,7 +14,7 @@ export default function ConfigPage() {
     heroTitle: '',
     heroText: '',
     heroImage: '',
-    carouselImages: [] as string[] // Array para el carrusel
+    carouselImages: [] as string[]
   })
 
   useEffect(() => {
@@ -22,7 +23,6 @@ export default function ConfigPage() {
       .then(data => {
         if(data) setFormData({
             ...data,
-            // Aseguramos que sea array por si viene null
             carouselImages: data.carouselImages || []
         })
         setLoading(false)
@@ -52,7 +52,6 @@ export default function ConfigPage() {
     }
   }
 
-  // Helpers para manejar las imágenes del carrusel
   const addCarouselImage = (url: string) => {
     setFormData(prev => ({ 
         ...prev, 
@@ -70,12 +69,16 @@ export default function ConfigPage() {
   if (loading) return <div className="p-10 text-center">Cargando...</div>
 
   return (
-    <div className="max-w-4xl mx-auto p-6 mt-10">
+    <div className="p-6 md:p-10 max-w-5xl mx-auto">
+      
+      {/* 👇 NUEVO HEADER CON BOTÓN ATRÁS */}
+      <AdminPageHeader 
+        title="Editar Portada" 
+        subtitle="Personaliza el banner principal y carrusel"
+        backLink="/admin"
+      />
+
       <div className="bg-white rounded-xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-8 border-b pb-4 text-gray-800">
-            Editar Portada de Inicio
-        </h1>
-        
         <form onSubmit={handleSubmit} className="space-y-10">
           
           {/* SECCIÓN 1: TEXTOS Y FONDO */}

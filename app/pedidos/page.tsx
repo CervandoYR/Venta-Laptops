@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
+import OrderCardActions from '@/components/orders/OrderCardActions' // 👈 Importamos el botón nuevo
 
 export default async function OrdersPage() {
   const session = await getServerSession(authOptions)
@@ -36,7 +37,6 @@ export default async function OrdersPage() {
         <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100 p-10">
           <div className="text-6xl mb-4">📦</div>
           <p className="text-gray-500 text-lg mb-6">No tienes pedidos aún</p>
-          {/* 👇 CAMBIO: Redirige al Inicio (Catálogo Principal) */}
           <Link 
             href="/" 
             className="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition"
@@ -60,6 +60,8 @@ export default async function OrdersPage() {
                         {new Date(order.createdAt).toLocaleDateString('es-PE')}
                      </span>
                   </div>
+                  {/* Botón de Cancelar (Solo aparece si es Pendiente) */}
+                  <OrderCardActions orderId={order.id} status={order.status} />
                 </div>
                 
                 <div className="flex items-center gap-4">

@@ -1,19 +1,16 @@
-import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { ProductForm } from '@/components/admin/ProductForm'
 
-export default async function NewProductPage() {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    redirect('/')
-  }
-
+export default function NewProductPage() {
   return (
-    <div className="container-custom py-12">
-      <h1 className="text-3xl font-bold mb-8">Nuevo Producto</h1>
-      <div className="max-w-4xl">
+    <div className="p-6 md:p-10 max-w-5xl mx-auto">
+      <AdminPageHeader 
+        title="Nuevo Producto" 
+        subtitle="Agrega un nuevo item a tu inventario"
+        backLink="/admin/productos" // 👈 Botón grande activado
+      />
+      
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <ProductForm />
       </div>
     </div>

@@ -1,129 +1,111 @@
-import { redirect, notFound } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
+import Image from 'next/image'
+import { ArrowLeft, Save, Trash2, MapPin, User, Mail, Truck } from 'lucide-react'
 import { UpdateOrderStatus } from '@/components/admin/UpdateOrderStatus'
+import AdminOrderClientActions from './AdminOrderClientActions'
 
-export default async function AdminOrderDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  const session = await getServerSession(authOptions)
+// 1. COMPONENTE DE SERVIDOR (Carga datos)
+export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
+    
+    // Obtenemos orden directo de BD
+    const order = await prisma.order.findUnique({
+        where: { id: params.id },
+        include: { items: { include: { product: true } }, user: true }
+    })
 
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    redirect('/')
-  }
+    if (!order) return <div className="p-10 text-center">Pedido no encontrado</div>
 
-  const order = await prisma.order.findUnique({
-    where: { id: params.id },
-    include: {
-      user: true,
-      items: {
-        include: {
-          product: true,
-        },
-      },
-    },
-  })
+    // Pasamos los datos al componente interactivo
+    return (
+        <div className="p-6 max-w-5xl mx-auto">
+            
+            {/* Header y Botones */}
+            <div className="flex items-center justify-between mb-6">
+                <Link href="/admin/pedidos" className="flex items-center text-gray-500 hover:text-blue-600">
+                    <ArrowLeft className="w-5 h-5 mr-1" /> Volver
+                </Link>
+                
+                {/* Botón Eliminar (Lógica cliente) */}
+                <AdminOrderClientActions orderId={order.id} mode="delete" />
+            </div>
 
-  if (!order) {
-    notFound()
-  }
+            <div className="grid md:grid-cols-3 gap-6">
+                
+                {/* COLUMNA IZQUIERDA: DETALLES */}
+                <div className="md:col-span-2 space-y-6">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-800">Pedido #{order.id.slice(-6).toUpperCase()}</h1>
+                                <p className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleString('es-PE')}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xl font-extrabold text-blue-600">{formatPrice(order.total)}</p>
+                                <span className="text-xs text-gray-400">Total</span>
+                            </div>
+                        </div>
 
-  return (
-    <div className="container-custom py-12">
-      <h1 className="text-3xl font-bold mb-8">
-        Pedido #{order.id.slice(0, 8)}
-      </h1>
+                        {/* Estado */}
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mb-6">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Estado del Pedido</label>
+                            <UpdateOrderStatus orderId={order.id} currentStatus={order.status} />
+                        </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Order Items */}
-          <div className="card p-6">
-            <h2 className="text-xl font-bold mb-4">Productos</h2>
-            <div className="space-y-4">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between items-center border-b pb-4">
-                  <div>
-                    <p className="font-semibold">{item.product.name}</p>
-                    <p className="text-sm text-gray-600">
-                      Cantidad: {item.quantity} x {formatPrice(item.price)}
-                    </p>
-                  </div>
-                  <p className="font-bold">
-                    {formatPrice(item.price * item.quantity)}
-                  </p>
+                        <h3 className="font-bold text-gray-800 mb-3">Productos</h3>
+                        <div className="space-y-3">
+                            {order.items.map((item) => (
+                                <div key={item.id} className="flex gap-4 items-center border-b pb-3 last:border-0">
+                                    <div className="relative w-16 h-16 bg-gray-100 rounded border overflow-hidden">
+                                        <Image src={item.product.image || '/placeholder-laptop.jpg'} alt={item.product.name} fill className="object-contain p-1" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-medium text-gray-800">{item.product.name}</p>
+                                        <p className="text-sm text-gray-500">Cant: {item.quantity}</p>
+                                    </div>
+                                    <p className="font-bold text-gray-700">{formatPrice(item.price)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex justify-between text-xl font-bold">
-                <span>Total</span>
-                <span>{formatPrice(order.total)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Shipping Info */}
-          <div className="card p-6">
-            <h2 className="text-xl font-bold mb-4">Información de Envío</h2>
-            <div className="space-y-2">
-              <p>
-                <span className="font-semibold">Nombre:</span> {order.shippingName}
-              </p>
-              <p>
-                <span className="font-semibold">Email:</span> {order.shippingEmail}
-              </p>
-              <p>
-                <span className="font-semibold">Dirección:</span> {order.shippingAddress}
-              </p>
-              <p>
-                <span className="font-semibold">Ciudad:</span> {order.shippingCity}
-              </p>
-              <p>
-                <span className="font-semibold">Código Postal:</span>{' '}
-                {order.shippingPostalCode}
-              </p>
-              <p>
-                <span className="font-semibold">País:</span> {order.shippingCountry}
-              </p>
+                {/* COLUMNA DERECHA: DATOS */}
+                <div className="space-y-6">
+                    
+                    {/* Cliente */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <User className="w-5 h-5 text-blue-500" /> Cliente
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                            <div className="flex items-center gap-2 text-gray-600">
+                                <User className="w-4 h-4" /> 
+                                <span className="font-medium text-gray-900">{order.user?.name || order.shippingName}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-600">
+                                <Mail className="w-4 h-4" /> 
+                                <span className="text-blue-600">{order.user?.email || order.shippingEmail}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Envío (Formulario Interactivo) */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <AdminOrderClientActions 
+                            orderId={order.id} 
+                            mode="edit_shipping" 
+                            initialData={{
+                                address: order.shippingAddress,
+                                city: order.shippingCity,
+                                zip: order.shippingPostalCode
+                            }}
+                        />
+                    </div>
+
+                </div>
             </div>
-          </div>
         </div>
-
-        <div className="lg:col-span-1">
-          <div className="card p-6 sticky top-24">
-            <h2 className="text-xl font-bold mb-4">Estado del Pedido</h2>
-            <UpdateOrderStatus orderId={order.id} currentStatus={order.status} />
-
-            <div className="mt-6 pt-6 border-t space-y-2 text-sm">
-              <p>
-                <span className="text-gray-600">Cliente:</span> {order.user.name}
-              </p>
-              <p>
-                <span className="text-gray-600">Fecha:</span>{' '}
-                {new Date(order.createdAt).toLocaleDateString('es-MX', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-              {order.stripePaymentIntentId && (
-                <p>
-                  <span className="text-gray-600">Payment Intent:</span>{' '}
-                  <span className="font-mono text-xs">
-                    {order.stripePaymentIntentId.slice(0, 20)}...
-                  </span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+    )
 }

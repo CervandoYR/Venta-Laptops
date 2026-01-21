@@ -1,46 +1,54 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Trash2, Loader2 } from 'lucide-react'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
-export default function DeleteProductButton({ id }: { id: string }) {
+export default function DeleteProductButton({ productId }: { productId: string }) {
   const router = useRouter()
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   const handleDelete = async () => {
-    // Confirmación simple antes de borrar
-    if (!confirm('¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer.')) {
-      return
-    }
-
-    setIsDeleting(true)
-
+    setLoading(true)
     try {
-      const res = await fetch(`/api/admin/products/${id}`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/admin/products/${productId}`, { 
+        method: 'DELETE' 
       })
-
-      if (!res.ok) {
-        throw new Error('Error al eliminar')
-      }
-
-      // Refresca la página para mostrar la lista actualizada
+      
+      if (!res.ok) throw new Error('Error al eliminar')
+      
       router.refresh()
+      setShowModal(false)
     } catch (error) {
-      console.error(error)
-      alert('Hubo un error al intentar eliminar el producto')
+      alert('Error al eliminar el producto')
     } finally {
-      setIsDeleting(false)
+      setLoading(false)
     }
   }
 
   return (
-    <button
-      onClick={handleDelete}
-      disabled={isDeleting}
-      className="text-red-600 hover:text-red-900 text-sm ml-4 transition-colors disabled:opacity-50"
-    >
-      {isDeleting ? 'Borrando...' : 'Eliminar'}
-    </button>
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        disabled={loading}
+        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+        title="Eliminar Producto"
+      >
+        <Trash2 className="w-5 h-5" />
+      </button>
+
+      <ConfirmModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onConfirm={handleDelete}
+        title="¿Eliminar Producto?"
+        message="¿Estás seguro? Se borrará el producto y sus imágenes. Si está en algún pedido antiguo, podría causar inconsistencias visuales."
+        confirmText="Eliminar Definitivamente"
+        variant="danger"
+        isLoading={loading}
+      />
+    </>
   )
 }
