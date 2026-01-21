@@ -5,7 +5,7 @@ import './globals.css'
 import { Providers } from './providers' 
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
-
+import FloatingWhatsApp from '@/components/ui/FloatingWhatsApp' // 👈 Importamos aquí
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -38,13 +38,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+      <body className={inter.className}>
         <Providers>
-          <Navbar />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+            <FloatingWhatsApp /> {/* 👈 Aquí va, visible en TODA la app */}
+          </div>
         </Providers>
       </body>
     </html>
