@@ -76,6 +76,11 @@ export function Navbar() {
             <Link href="/metodos-pago" className="text-gray-600 hover:text-blue-600 font-medium transition">
               Métodos de Pago
             </Link>
+
+            {/* 👇 NUEVO ENLACE ESCRITORIO */}
+            <Link href="/contacto" className="text-gray-600 hover:text-blue-600 font-medium transition">
+              Contáctanos
+            </Link>
             
             {session?.user && (
               <>
@@ -196,6 +201,11 @@ export function Navbar() {
               
               <Link href="/metodos-pago" className="px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-md font-medium" onClick={() => setMobileMenuOpen(false)}>
                 Métodos de Pago
+              </Link>
+
+              {/* 👇 NUEVO ENLACE MÓVIL */}
+              <Link href="/contacto" className="px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-md font-medium" onClick={() => setMobileMenuOpen(false)}>
+                Contáctanos
               </Link>
 
               <div className="border-t my-2 border-gray-100"></div>

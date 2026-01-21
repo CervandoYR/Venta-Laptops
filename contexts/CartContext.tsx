@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Product } from '@prisma/client'
 
 interface CartItem {
+  id: Key | null | undefined
   productId: string
   product: Product
   quantity: number

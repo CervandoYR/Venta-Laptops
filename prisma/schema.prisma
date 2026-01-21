@@ -10,6 +10,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ENUMS (Opciones predefinidas) ---
+
 enum UserRole {
   USER
   ADMIN
@@ -30,20 +32,19 @@ enum ProductCondition {
   REFURBISHED
 }
 
-// 👇 TABLA DE CONFIGURACIÓN DE LA TIENDA
+// --- MODELOS (Tablas) ---
+
+// Configuración de la Tienda (Hero, Carrusel, Textos)
 model StoreConfig {
   id             String   @id @default(cuid())
   heroTitle      String   @default("Laptops Premium para Profesionales")
   heroText       String   @default("Encuentra la laptop perfecta para tu trabajo. Las mejores marcas, precios competitivos y envío gratis.")
   heroImage      String   @default("https://images.unsplash.com/photo-1531297424005-06342e7f3947?w=1200&q=80")
-  
-  // Array de imágenes para el carrusel
   carouselImages String[] 
-
   updatedAt      DateTime @updatedAt
 }
 
-// 👇 MODELO DE USUARIO ACTUALIZADO
+// Usuario (Clientes y Admin)
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -52,42 +53,48 @@ model User {
   role          UserRole  @default(USER)
   image         String?
   
-  // Campos agregados para el Perfil
+  // Datos de Contacto y Envío
   address       String?
   phone         String?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
   orders        Order[]
   cartItems     CartItem[]
 
   @@index([email])
 }
 
+// Productos (Laptops, PCs, etc.)
 model Product {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
   category    String   @default("Laptops")
   description String   @db.Text
-  price       Float
+  
+  // Precios
+  price         Float   // Precio de Venta (Actual)
+  originalPrice Float?  // Precio de Lista (Para mostrar oferta tachada)
+
   image       String
   images      String[]
   brand       String
   model       String
 
-  // Condición
+  // Estado y Detalles
   condition        ProductCondition @default(NEW)
   conditionDetails String?          @db.Text 
-
-  // Specs Técnicas
+  
+  // Especificaciones Técnicas
   cpu          String?  
   ram          String?
   storage      String?
   display      String?
   gpu          String?
   
-  // Detalles Extra
+  // Detalles Adicionales
   connectivity String?
   ports        String?
   battery      String?
@@ -95,11 +102,14 @@ model Product {
   weight       String?
   sound        String?
 
+  // Inventario y Visibilidad
   stock       Int      @default(0)
   featured    Boolean  @default(false)
   active      Boolean  @default(true)
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
   orderItems  OrderItem[]
   cartItems   CartItem[]
 
@@ -108,13 +118,16 @@ model Product {
   @@index([category])
 }
 
+// Carrito de Compras (Temporal antes de la orden)
 model CartItem {
   id        String   @id @default(cuid())
   userId    String
   productId String
   quantity  Int      @default(1)
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -122,20 +135,27 @@ model CartItem {
   @@index([userId])
 }
 
+// Orden de Compra (Pedido confirmado)
 model Order {
   id                    String      @id @default(cuid())
   userId                String
   status                OrderStatus @default(PENDING)
   total                 Float
+  
+  // Datos de Envío del Pedido
   shippingName          String
   shippingEmail         String
   shippingAddress       String      @db.Text
   shippingCity          String
   shippingPostalCode    String
   shippingCountry       String
+  
+  // Pago (Opcional si usas Stripe a futuro)
   stripePaymentIntentId String?     @unique
+  
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
+  
   user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items                 OrderItem[]
 
@@ -143,12 +163,14 @@ model Order {
   @@index([status])
 }
 
+// Items dentro de una Orden (Snapshot del producto al momento de comprar)
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
   productId String
   quantity  Int
-  price     Float
+  price     Float   // Precio al momento de la compra
+  
   product   Product @relation(fields: [productId], references: [id])
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

@@ -1,37 +1,49 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache' // 👈 IMPORTANTE
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
+export async function POST(req: Request) {
   try {
-    const body = await request.json()
+    const session = await getServerSession(authOptions)
+    
+    // Verificamos si es ADMIN (ajusta según tu lógica de roles)
+    if ((session?.user as any)?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    
+    // Validación básica
+    if (!body.name || !body.price || !body.brand) {
+      return NextResponse.json({ error: 'Faltan datos obligatorios' }, { status: 400 })
+    }
+
+    // Convertir datos numéricos
+    const price = parseFloat(body.price)
+    const originalPrice = body.originalPrice ? parseFloat(body.originalPrice) : null
+    const stock = parseInt(body.stock)
+
+    // Crear slug único
+    let slug = body.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
+    const exists = await prisma.product.findUnique({ where: { slug } })
+    if (exists) {
+      slug = `${slug}-${Math.floor(Math.random() * 1000)}`
+    }
 
     const product = await prisma.product.create({
       data: {
         ...body,
-        images: body.images || [],
-      },
+        price,
+        originalPrice, // Guardamos el precio de lista
+        stock,
+        slug,
+      }
     })
 
-    // 👇 REFRESCA LA PÁGINA DE INICIO Y CATÁLOGO
-    revalidatePath('/')
-    revalidatePath('/productos')
-    revalidatePath('/admin/productos')
-
-    return NextResponse.json({ product }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error creating product:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error al crear el producto' },
-      { status: 500 }
-    )
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error('Error creando producto:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }

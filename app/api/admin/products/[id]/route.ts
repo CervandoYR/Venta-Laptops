@@ -1,72 +1,52 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache' // 👈 IMPORTANTE
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
-export async function PATCH(
-  request: Request,
+export async function PUT(
+  req: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
   try {
-    const body = await request.json()
+    const session = await getServerSession(authOptions)
+    
+    if ((session?.user as any)?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
 
+    const body = await req.json()
+
+    // Preparar datos numéricos
+    const price = parseFloat(body.price)
+    const originalPrice = body.originalPrice ? parseFloat(body.originalPrice) : null
+    const stock = parseInt(body.stock)
+
+    // Actualizar
     const product = await prisma.product.update({
       where: { id: params.id },
       data: {
         ...body,
-        images: body.images || [],
-      },
+        price,
+        originalPrice,
+        stock,
+      }
     })
 
-    // 👇 ESTAS LÍNEAS BORRAN EL CACHÉ VIEJO
-    revalidatePath('/')
-    revalidatePath('/productos')
-    revalidatePath(`/productos/${product.slug}`)
-    revalidatePath('/admin/productos')
-
-    return NextResponse.json({ product })
-  } catch (error: any) {
-    console.error('Error updating product:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error al actualizar el producto' },
-      { status: 500 }
-    )
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error('Error actualizando producto:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
 
+// DELETE también debería estar aquí (puedes dejar el que tenías)
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
-  try {
-    await prisma.product.delete({
-      where: { id: params.id },
-    })
-
-    // 👇 AQUÍ TAMBIÉN
-    revalidatePath('/')
-    revalidatePath('/productos')
-    revalidatePath('/admin/productos')
-
+    req: Request,
+    { params }: { params: { id: string } }
+  ) {
+    const session = await getServerSession(authOptions)
+    if ((session?.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  
+    await prisma.product.delete({ where: { id: params.id } })
     return NextResponse.json({ message: 'Producto eliminado' })
-  } catch (error: any) {
-    console.error('Error deleting product:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error al eliminar el producto' },
-      { status: 500 }
-    )
-  }
 }
