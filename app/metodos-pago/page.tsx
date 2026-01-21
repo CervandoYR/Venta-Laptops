@@ -9,8 +9,8 @@ export default function PaymentMethodsPage() {
 
         <div className="space-y-8">
           
-          {/* Tarjetas */}
-          <div className="flex flex-col md:flex-row gap-6 p-8 border rounded-xl hover:shadow-md transition-shadow">
+          {/* SECCIÓN TARJETAS (COMENTADA TEMPORALMENTE)
+          <div className="flex flex-col md:flex-row gap-6 p-8 border rounded-xl hover:shadow-md transition-shadow opacity-50 pointer-events-none">
             <div className="text-5xl text-blue-600">💳</div>
             <div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Tarjetas de Crédito y Débito</h2>
@@ -19,13 +19,14 @@ export default function PaymentMethodsPage() {
                 Tus pagos son procesados de forma segura a través de nuestra pasarela encriptada.
               </p>
               <div className="flex gap-2 opacity-70">
-                 {/* Aquí podrías poner íconos de tarjetas */}
                  <span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold">VISA</span>
                  <span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold">MASTERCARD</span>
                  <span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold">AMEX</span>
               </div>
+              <p className="text-xs text-orange-600 font-bold mt-2">Próximamente disponible</p>
             </div>
           </div>
+          */}
 
           {/* Transferencia / Yape */}
           <div className="flex flex-col md:flex-row gap-6 p-8 border rounded-xl hover:shadow-md transition-shadow">
