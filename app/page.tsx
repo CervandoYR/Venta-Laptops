@@ -6,6 +6,9 @@ import ImageCarousel from '@/components/ui/ImageCarousel'
 import SearchBar from '@/components/ui/SearchBar'
 import ProductFilters from '@/components/products/ProductFilters'
 import { Prisma } from '@prisma/client'
+import { FeaturedCarousel } from '@/components/products/FeaturedCarousel'
+import BenefitsSection from '@/components/ui/BenefitsSection'
+import FloatingWhatsApp from '@/components/ui/FloatingWhatsApp'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,47 +35,61 @@ interface PageProps {
 
 export default async function HomePage({ searchParams }: PageProps) {
   
-  // 1. Cargar Configuración del Hero
-  let config = await prisma.storeConfig.findFirst()
+  // 1. Configuración y Destacados
+  const [config, featuredProducts] = await Promise.all([
+    prisma.storeConfig.findFirst(),
+    prisma.product.findMany({
+      where: { 
+        featured: true, 
+        active: true 
+      },
+      take: 8,
+      orderBy: { updatedAt: 'desc' }
+    })
+  ])
   
-  // Si es null, definimos un objeto básico para evitar errores, 
-  // pero usaremos ?. en el JSX por seguridad extra.
-  if (!config) {
-    config = {
-      heroTitle: "Laptops Premium para Profesionales",
-      heroText: "Encuentra la laptop perfecta...",
-      heroImage: "",
-      carouselImages: []
-    } as any
+  const siteConfig = config || {
+    heroTitle: "Laptops Premium para Profesionales",
+    heroText: "Encuentra la laptop perfecta...",
+    heroImage: "",
+    carouselImages: []
   }
 
-  // 2. Construir el Filtro Dinámico (WHERE)
+  // 2. Construcción de Filtros Avanzada
   const { q, category, min, max, brand, condition } = searchParams
+
+  // Lógica de búsqueda mejorada
+  const searchFilter = q ? {
+    OR: [
+      { name: { contains: q, mode: 'insensitive' as const } },
+      { description: { contains: q, mode: 'insensitive' as const } },
+      { brand: { contains: q, mode: 'insensitive' as const } },
+      { model: { contains: q, mode: 'insensitive' as const } },
+      { category: { contains: q, mode: 'insensitive' as const } },
+      { cpu: { contains: q, mode: 'insensitive' as const } },
+      { gpu: { contains: q, mode: 'insensitive' as const } },
+    ]
+  } : {}
 
   const where: Prisma.ProductWhereInput = {
     active: true,
     ...(category && category !== 'Todos' ? { category } : {}),
-    ...(q ? {
-      OR: [
-        { name: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
-        { brand: { contains: q, mode: 'insensitive' } },
-      ]
-    } : {}),
+    ...searchFilter,
     price: {
       gte: min ? parseFloat(min) : undefined,
       lte: max ? parseFloat(max) : undefined,
     },
-    ...(brand && brand !== 'all' ? { brand: { equals: brand, mode: 'insensitive' } } : {}),
-    ...(condition && condition !== 'all' ? { condition: condition as any } : {}),
+    ...(brand && brand !== 'all' ? { brand: { equals: brand, mode: 'insensitive' as const } } : {}),
+    ...(condition ? { condition: condition as any } : {}),
   }
 
-  // 3. Consultas a la Base de Datos
+  // 3. Consulta de Productos
   const products = await prisma.product.findMany({
     where,
     orderBy: { createdAt: 'desc' },
   })
 
+  // Obtener marcas disponibles
   const brandsGroup = await prisma.product.groupBy({
     by: ['brand'],
     where: { active: true },
@@ -81,39 +98,42 @@ export default async function HomePage({ searchParams }: PageProps) {
   const availableBrands = brandsGroup.map(b => b.brand)
 
   return (
-    <main className="bg-gray-50 min-h-screen">
+    <main className="bg-gray-50 min-h-screen pb-20">
       
+      <FloatingWhatsApp />
+
       {/* --- HERO SECTION --- */}
       <section className="bg-gradient-to-br from-blue-900 to-blue-800 text-white py-12 relative overflow-hidden">
-        {/* Fondo decorativo */}
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
-            {/* 👇 AQUÍ ESTABA EL ERROR: Agregamos el signo ? */}
-            {config?.heroImage && <Image src={config.heroImage} alt="Background" fill className="object-cover" />}
+            {siteConfig.heroImage && <Image src={siteConfig.heroImage} alt="Background" fill className="object-cover" />}
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-4 animate-fade-in-up">
+            
+            {/* Columna Texto */}
+            <div className="space-y-4 animate-fade-in-up text-center md:text-left">
               <h1 className="text-3xl md:text-5xl font-extrabold leading-tight drop-shadow-lg">
-                {/* 👇 Agregamos ? aquí */}
-                {config?.heroTitle}
+                {siteConfig.heroTitle}
               </h1>
-              <p className="text-lg text-blue-100 max-w-lg">
-                {/* 👇 Agregamos ? aquí */}
-                {config?.heroText}
+              <p className="text-lg text-blue-100 max-w-lg mx-auto md:mx-0">
+                {siteConfig.heroText}
               </p>
               <div className="pt-2">
                 <SearchBar />
               </div>
             </div>
             
-            <div className="hidden md:block relative w-full h-[350px] rounded-xl overflow-hidden shadow-2xl border-4 border-white/10">
-               {/* 👇 Agregamos ? y un array vacío por si acaso */}
-               <ImageCarousel images={config?.carouselImages || []} />
+            {/* Columna Carrusel (CORREGIDO: Visible en móvil) */}
+            <div className="block relative w-full h-56 sm:h-72 md:h-[350px] rounded-xl overflow-hidden shadow-2xl border-4 border-white/10 mt-6 md:mt-0">
+               <ImageCarousel images={siteConfig.carouselImages || []} />
             </div>
+
           </div>
         </div>
       </section>
+
+      <BenefitsSection />
 
       {/* --- CATEGORÍAS --- */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
@@ -141,13 +161,20 @@ export default async function HomePage({ searchParams }: PageProps) {
         </div>
       </div>
 
+      {/* --- CARRUSEL DESTACADOS --- */}
+      {!q && !category && featuredProducts.length > 0 && (
+        <FeaturedCarousel title="🔥 Ofertas Destacadas" products={featuredProducts} />
+      )}
+
       {/* --- CONTENIDO PRINCIPAL --- */}
       <div className="container mx-auto px-4 py-8">
         
         <div className="flex flex-col md:flex-row gap-8">
           
-          <aside className="w-full md:w-64 flex-shrink-0">
-             <ProductFilters brands={availableBrands} />
+          <aside className="w-full md:w-64 flex-shrink-0 hidden md:block">
+             <div className="sticky top-24">
+                <ProductFilters brands={availableBrands} />
+             </div>
           </aside>
 
           <div className="flex-1">
@@ -166,6 +193,10 @@ export default async function HomePage({ searchParams }: PageProps) {
                </span>
             </div>
 
+            <div className="md:hidden mb-6">
+               <ProductFilters brands={availableBrands} />
+            </div>
+
             {products.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((product) => (
@@ -177,7 +208,7 @@ export default async function HomePage({ searchParams }: PageProps) {
                 <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-lg font-bold text-gray-800">No encontramos resultados</h3>
                 <p className="text-gray-500 max-w-sm mt-2">
-                  Intenta ajustar los filtros de precio o busca con otros términos.
+                  Intenta buscar con otros términos o revisa la ortografía.
                 </p>
                 <Link href="/" className="mt-6 text-blue-600 font-bold hover:underline">
                    Limpiar todos los filtros

@@ -77,7 +77,6 @@ export function Navbar() {
               Métodos de Pago
             </Link>
 
-            {/* 👇 NUEVO ENLACE ESCRITORIO */}
             <Link href="/contacto" className="text-gray-600 hover:text-blue-600 font-medium transition">
               Contáctanos
             </Link>
@@ -98,22 +97,24 @@ export function Navbar() {
           </div>
 
           {/* ICONOS DERECHA */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center gap-2 md:gap-6">
+            
+            {/* Carrito */}
             <Link
               href="/carrito"
               className="relative p-2 text-gray-600 hover:text-blue-600 transition"
             >
               <ShoppingCart className="w-6 h-6" />
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-bounce-subtle">
                   {itemCount}
                 </span>
               )}
             </Link>
 
+            {/* Usuario (Escritorio) */}
             {session ? (
               <div className="hidden md:flex items-center space-x-4 pl-4 border-l">
-                {/* ENLACE AL PERFIL CON NOMBRE */}
                 <Link 
                   href="/perfil"
                   className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors cursor-pointer group"
@@ -143,17 +144,25 @@ export function Navbar() {
               </div>
             )}
 
-            {/* Botón Menú Móvil */}
+            {/* 👇 BOTÓN MENÚ MÓVIL MEJORADO (Aquí está el cambio clave) */}
             <button
-              className="md:hidden p-2 text-gray-600"
+              className="md:hidden flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors border border-gray-100"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Menú"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <>
+                  <Menu className="w-6 h-6" />
+                  <span className="text-sm font-bold">Menú</span>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        {/* MENÚ MÓVIL */}
+        {/* MENÚ MÓVIL (DESPLEGABLE) */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-100 animate-fade-in-down bg-white absolute left-0 right-0 shadow-xl border-b z-50">
             <div className="flex flex-col space-y-1 container mx-auto px-4">
@@ -203,7 +212,6 @@ export function Navbar() {
                 Métodos de Pago
               </Link>
 
-              {/* 👇 NUEVO ENLACE MÓVIL */}
               <Link href="/contacto" className="px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-md font-medium" onClick={() => setMobileMenuOpen(false)}>
                 Contáctanos
               </Link>

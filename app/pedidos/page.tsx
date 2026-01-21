@@ -33,57 +33,67 @@ export default async function OrdersPage() {
       <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
 
       {orders.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg mb-4">No tienes pedidos aún</p>
-          <Link href="/productos" className="btn-primary">
-            Ver Productos
+        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100 p-10">
+          <div className="text-6xl mb-4">📦</div>
+          <p className="text-gray-500 text-lg mb-6">No tienes pedidos aún</p>
+          {/* 👇 CAMBIO: Redirige al Inicio (Catálogo Principal) */}
+          <Link 
+            href="/" 
+            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition"
+          >
+            Ir a la Tienda
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {orders.map((order) => (
-            <div key={order.id} className="card p-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+              
+              {/* Cabecera del Pedido */}
+              <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold text-lg">
-                    Pedido #{order.id.slice(0, 8)}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleDateString('es-MX', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
+                  <div className="flex items-center gap-2">
+                     <h3 className="font-bold text-lg text-gray-900">
+                        Pedido #{order.id.slice(-6).toUpperCase()}
+                     </h3>
+                     <span className="text-xs text-gray-400 bg-white px-2 py-1 rounded border">
+                        {new Date(order.createdAt).toLocaleDateString('es-PE')}
+                     </span>
+                  </div>
                 </div>
-                <div className="mt-2 md:mt-0 text-right">
+                
+                <div className="flex items-center gap-4">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                       order.status === 'DELIVERED'
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-green-100 text-green-700'
                         : order.status === 'CANCELLED'
-                        ? 'bg-red-100 text-red-800'
+                        ? 'bg-red-100 text-red-700'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
-                    {order.status === 'PENDING' && 'Pendiente'}
-                    {order.status === 'PROCESSING' && 'Procesando'}
-                    {order.status === 'SHIPPED' && 'En Camino'}
-                    {order.status === 'DELIVERED' && 'Entregado'}
-                    {order.status === 'CANCELLED' && 'Cancelado'}
+                    {order.status === 'PENDING' && '⏳ Pendiente'}
+                    {order.status === 'PROCESSING' && '⚙️ Procesando'}
+                    {order.status === 'SHIPPED' && '🚚 En Camino'}
+                    {order.status === 'DELIVERED' && '✅ Entregado'}
+                    {order.status === 'CANCELLED' && '❌ Cancelado'}
                   </span>
-                  <p className="text-xl font-bold mt-2">
+                  <p className="text-xl font-extrabold text-blue-900">
                     {formatPrice(order.total)}
                   </p>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-2">Productos:</h4>
-                <ul className="space-y-1">
+              {/* Lista de Productos */}
+              <div className="p-4 md:p-6">
+                <ul className="space-y-4">
                   {order.items.map((item) => (
-                    <li key={item.id} className="text-sm">
-                      {item.product.name} x {item.quantity} - {formatPrice(item.price)}
+                    <li key={item.id} className="flex justify-between items-center text-sm border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-gray-500">x{item.quantity}</span>
+                        <span className="text-gray-800 font-medium">{item.product.name}</span>
+                      </div>
+                      <span className="text-gray-600 font-bold">{formatPrice(item.price)}</span>
                     </li>
                   ))}
                 </ul>
