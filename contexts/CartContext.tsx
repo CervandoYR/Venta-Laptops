@@ -4,8 +4,9 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useSession } from 'next-auth/react'
 import { Product } from '@prisma/client'
 
+// Definimos la interfaz del Item del carrito
 interface CartItem {
-  id: Key | null | undefined
+  id?: string // Opcional, ya que en localStorage al inicio no tiene ID de DB
   productId: string
   product: Product
   quantity: number
@@ -14,6 +15,7 @@ interface CartItem {
 interface CartContextType {
   items: CartItem[]
   itemCount: number
+  cartTotal: number // 👇 Agregado para que funcione el Checkout
   addItem: (product: Product, quantity?: number) => Promise<void>
   removeItem: (productId: string) => Promise<void>
   updateQuantity: (productId: string, quantity: number) => Promise<void>
@@ -28,7 +30,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Cargar carrito al iniciar
+  // Cargar carrito al iniciar o cambiar sesión
   useEffect(() => {
     loadCart()
   }, [session])
@@ -37,19 +39,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       if (session?.user) {
-        // Cargar desde DB
+        // MODO USUARIO LOGUEADO: Cargar desde DB
         const response = await fetch('/api/cart')
         if (response.ok) {
           const data = await response.json()
           setItems(data.items || [])
         }
       } else {
-        // Cargar desde localStorage
+        // MODO INVITADO: Cargar desde localStorage
         if (typeof window !== 'undefined') {
           const stored = localStorage.getItem('cart')
           if (stored) {
             const cartItems = JSON.parse(stored)
-            // Cargar productos completos
+            // Cargar datos frescos de los productos
             const products = await Promise.all(
               cartItems.map(async (item: { productId: string; quantity: number }) => {
                 try {
@@ -65,6 +67,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               })
             )
             setItems(products.filter(Boolean) as CartItem[])
+          } else {
+             setItems([])
           }
         }
       }
@@ -77,7 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   async function addItem(product: Product, quantity: number = 1) {
     if (session?.user) {
-      // Agregar a DB
+      // DB
       const response = await fetch('/api/cart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await loadCart()
       }
     } else {
-      // Agregar a localStorage
+      // LocalStorage
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('cart')
         const cartItems = stored ? JSON.parse(stored) : []
@@ -175,13 +179,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Cálculos Automáticos
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  const cartTotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
 
   return (
     <CartContext.Provider
       value={{
         items,
         itemCount,
+        cartTotal, // Ahora disponible para toda la app
         addItem,
         removeItem,
         updateQuantity,
