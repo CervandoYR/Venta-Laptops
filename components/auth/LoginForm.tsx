@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 export function LoginForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false) // Estado para el ojito
   
   const [formData, setFormData] = useState({
     email: '',
@@ -29,85 +30,101 @@ export function LoginForm() {
       })
 
       if (result?.error) {
-        setError('Credenciales inválidas. Verifica tu correo o contraseña.')
+        setError('Correo o contraseña incorrectos.')
         setLoading(false)
       } else {
-        router.push('/') // O a /admin si es admin
+        // Redirección inteligente: Si es admin, al panel. Si no, al home.
+        // Como no sabemos el rol aquí fácilmente sin llamar a sesión, mandamos al home y el middleware protege.
+        router.push('/') 
         router.refresh()
       }
     } catch (error) {
-      setError('Ocurrió un error inesperado.')
+      setError('Error de conexión. Inténtalo de nuevo.')
       setLoading(false)
     }
   }
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      {/* Mensaje de Error */}
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center gap-2 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-start gap-3 text-sm animate-fade-in">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="rounded-md shadow-sm space-y-4">
+      <div className="space-y-5">
+        {/* Email */}
         <div>
-          <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
             Correo Electrónico
           </label>
-          <input
-            id="email-address"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="ejemplo@correo.com"
-          />
+          <div className="relative group">
+            <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              placeholder="tu@correo.com"
+            />
+          </div>
         </div>
+
+        {/* Password */}
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
             Contraseña
           </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="••••••••"
-          />
+          <div className="relative group">
+            <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              placeholder="••••••••"
+            />
+            {/* Botón Ojito */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 👇 AQUÍ ESTÁ EL ENLACE QUE QUERÍAS 👇 */}
-      <div className="flex items-center justify-end">
-        <Link 
-          href="/recuperar" 
-          className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline transition-colors"
-        >
-          ¿Olvidaste tu contraseña?
-        </Link>
+      <div className="flex items-center justify-between pt-1">
+        <div className="text-sm">
+          <Link 
+            href="/recuperar" 
+            className="font-medium text-blue-600 hover:text-blue-500 hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
       </div>
 
-      <div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-all shadow-lg hover:shadow-blue-500/30"
-        >
-          {loading ? (
-            <Loader2 className="animate-spin w-5 h-5" />
-          ) : (
-            'Ingresar'
-          )}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group"
+      >
+        {loading ? (
+          <Loader2 className="animate-spin w-5 h-5" />
+        ) : (
+          <>
+            Ingresar a mi Cuenta
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </>
+        )}
+      </button>
     </form>
   )
 }

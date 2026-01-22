@@ -2,144 +2,134 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-
-const registerSchema = z.object({
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-})
-
-type RegisterFormData = z.infer<typeof registerSchema>
+import { signIn } from 'next-auth/react'
+import { Loader2, AlertCircle, User, Mail, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react'
 
 export function RegisterForm() {
   const router = useRouter()
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
   })
 
-  async function onSubmit(data: RegisterFormData) {
-    setError('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
+    setError('')
+
+    // Validación de contraseña corta
+    if(formData.password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres.')
+        setLoading(false)
+        return
+    }
 
     try {
-      const response = await fetch('/api/auth/register', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-        }),
+        body: JSON.stringify(formData)
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        setError(result.error || 'Error al registrar usuario')
-      } else {
-        router.push('/login?registered=true')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al registrarse')
       }
-    } catch (err) {
-      setError('Error al registrar usuario. Por favor intenta nuevamente.')
-    } finally {
+
+      // Login automático tras registro exitoso
+      await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false
+      })
+
+      router.push('/')
+      router.refresh()
+
+    } catch (error: any) {
+      setError(error.message)
       setLoading(false)
     }
   }
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+    <form className="space-y-5" onSubmit={handleSubmit}>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-start gap-3 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre Completo
-          </label>
+      {/* Nombre */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre Completo</label>
+        <div className="relative group">
+          <User className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
           <input
-            id="name"
             type="text"
-            {...register('name')}
-            className="input"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
             placeholder="Juan Pérez"
           />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
         </div>
+      </div>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Correo Electrónico</label>
+        <div className="relative group">
+          <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
           <input
-            id="email"
             type="email"
-            {...register('email')}
-            className="input"
-            placeholder="tu@email.com"
+            required
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+            placeholder="tu@correo.com"
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-          )}
         </div>
+      </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-            Contraseña
-          </label>
+      {/* Password */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Contraseña</label>
+        <div className="relative group">
+          <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
           <input
-            id="password"
-            type="password"
-            {...register('password')}
-            className="input"
-            placeholder="••••••••"
+            type={showPassword ? "text" : "password"}
+            required
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+            placeholder="Mínimo 6 caracteres"
           />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 p-1"
+          >
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
         </div>
-
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-            Confirmar Contraseña
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            {...register('confirmPassword')}
-            className="input"
-            placeholder="••••••••"
-          />
-          {errors.confirmPassword && (
-            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-          )}
-        </div>
+        <p className="text-xs text-gray-500 mt-2 ml-1">
+          Usa al menos 6 caracteres para mayor seguridad.
+        </p>
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="btn-primary w-full"
+        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-green-500/30 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70"
       >
-        {loading ? 'Registrando...' : 'Crear Cuenta'}
+        {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Crear Cuenta Gratis'}
       </button>
     </form>
   )
