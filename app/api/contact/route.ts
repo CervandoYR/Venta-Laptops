@@ -3,14 +3,12 @@ import nodemailer from 'nodemailer'
 
 export async function POST(req: Request) {
   try {
-    // Recibimos los nuevos campos: reason y orderId
     const { name, email, phone, reason, orderId, message } = await req.json()
 
     if (!name || !email || !message) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    // Mapeo de IDs a texto legible para el correo
     const reasonLabels: Record<string, string> = {
       'consulta': '🔎 Consulta de Producto',
       'pedido': '📦 Estado de Pedido',
@@ -39,7 +37,9 @@ export async function POST(req: Request) {
           
           <div style="background-color: #1e3a8a; padding: 20px; text-align: center;">
             <h2 style="color: #ffffff; margin: 0;">Solicitud de Contacto</h2>
-            <p style="color: #bfdbfe; margin: 5px 0 0 0; font-size: 14px;">Desde netsystems.com</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">
+              <a href="https://store.netsystems.net.pe" style="color: #bfdbfe !important; text-decoration: underline;">Desde store.netsystems.net.pe</a>
+            </p>
           </div>
 
           <div style="padding: 30px; background-color: #ffffff;">
