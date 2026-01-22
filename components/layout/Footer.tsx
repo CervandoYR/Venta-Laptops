@@ -8,7 +8,7 @@ export function Footer() {
           
           {/* Columna 1: Info */}
           <div>
-            <h3 className="text-2xl font-bold text-white mb-4">Servitek</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Netsystems</h3>
             <p className="mb-4 text-sm leading-relaxed">
               Tu tienda de confianza para laptops y equipos de alta gama. 
               Tecnología premium al alcance de todos.
@@ -47,13 +47,13 @@ export function Footer() {
             <h4 className="text-lg font-bold text-white mb-4">Contáctanos</h4>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
-                 <span>📍</span> Av. Javier Prado 1234, Lima
+                 <span>📍</span> Juan Castilla 656, San Juan de Miraflores
               </li>
               <li className="flex items-center gap-2">
-                 <span>📱</span> +51 987 654 321
+                 <span>📱</span> +51 924 076 526
               </li>
               <li className="flex items-center gap-2">
-                 <span>✉️</span> ventas@servitek.com
+                 <span>✉️</span> servitektechnologies@gmail.com
               </li>
             </ul>
           </div>
@@ -62,9 +62,9 @@ export function Footer() {
 
         {/* Sección Legal y Copyright */}
         <div className="border-t border-gray-800 pt-8 text-center text-sm">
-          <p className="mb-2">&copy; {new Date().getFullYear()} Servitek Technologies S.R.L. Todos los derechos reservados.</p>
+          <p className="mb-2">&copy; {new Date().getFullYear()} Servitek Technologies S.R.L. - Netsystems. Todos los derechos reservados.</p>
           <p className="text-gray-500 font-semibold tracking-wide">
-            RUC: 20603694067 - SERVITEK TECHNOLOGIES S.R.L
+            RUC: 20603694067 - SERVITEK TECHNOLOGIES S.R.L - NETSYSTEMS
           </p>
         </div>
       </div>

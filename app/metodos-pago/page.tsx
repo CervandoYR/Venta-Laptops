@@ -52,7 +52,7 @@ export default function PaymentMethodsPage() {
             <div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Pago Contra-Entrega (Solo Lima)</h2>
               <p className="text-gray-600">
-                Si te encuentras en Lima Metropolitana, puedes pagar en efectivo o con tarjeta al momento de recibir tu producto.
+                Si te encuentras en Lima Metropolitana, puedes pagar en efectivo, Yape/Plin o transferencia al momento de recibir tu producto.
                 Válido para compras de hasta S/ 2,000.
               </p>
             </div>
