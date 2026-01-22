@@ -105,9 +105,9 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                             orderId={order.id} 
                             mode="edit_shipping" 
                             initialData={{
-                                address: order.shippingAddress,
-                                city: order.shippingCity,
-                                zip: order.shippingPostalCode
+                                address: order.shippingAddress ?? '',
+                                city: order.shippingCity ?? '',
+                                zip: order.shippingPostalCode ?? ''
                             }}
                         />
                     </div>
