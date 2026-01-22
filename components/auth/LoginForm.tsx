@@ -3,103 +3,111 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-
-const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-})
-
-type LoginFormData = z.infer<typeof loginSchema>
+import Link from 'next/link'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 export function LoginForm() {
   const router = useRouter()
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  const [error, setError] = useState('')
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
   })
 
-  async function onSubmit(data: LoginFormData) {
-    setError('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
+    setError('')
 
     try {
       const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
+        email: formData.email,
+        password: formData.password,
+        redirect: false
       })
 
       if (result?.error) {
-        setError('Credenciales inválidas')
+        setError('Credenciales inválidas. Verifica tu correo o contraseña.')
+        setLoading(false)
       } else {
-        router.push('/')
+        router.push('/') // O a /admin si es admin
         router.refresh()
       }
-    } catch (err) {
-      setError('Error al iniciar sesión. Por favor intenta nuevamente.')
-    } finally {
+    } catch (error) {
+      setError('Ocurrió un error inesperado.')
       setLoading(false)
     }
   }
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center gap-2 text-sm">
+          <AlertCircle className="w-4 h-4" />
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="rounded-md shadow-sm space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
+          <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">
+            Correo Electrónico
           </label>
           <input
-            id="email"
+            id="email-address"
+            name="email"
             type="email"
-            {...register('email')}
-            className="input"
-            placeholder="tu@email.com"
+            autoComplete="email"
+            required
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="ejemplo@correo.com"
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-          )}
         </div>
-
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
             Contraseña
           </label>
           <input
             id="password"
+            name="password"
             type="password"
-            {...register('password')}
-            className="input"
+            autoComplete="current-password"
+            required
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             placeholder="••••••••"
           />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-          )}
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn-primary w-full"
-      >
-        {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-      </button>
+      {/* 👇 AQUÍ ESTÁ EL ENLACE QUE QUERÍAS 👇 */}
+      <div className="flex items-center justify-end">
+        <Link 
+          href="/recuperar" 
+          className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline transition-colors"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </div>
+
+      <div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-all shadow-lg hover:shadow-blue-500/30"
+        >
+          {loading ? (
+            <Loader2 className="animate-spin w-5 h-5" />
+          ) : (
+            'Ingresar'
+          )}
+        </button>
+      </div>
     </form>
   )
 }

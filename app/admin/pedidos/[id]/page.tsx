@@ -2,7 +2,8 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import Image from 'next/image'
-import { ArrowLeft, Save, Trash2, MapPin, User, Mail, Truck } from 'lucide-react'
+// 👇 Agregamos 'Phone' a los imports
+import { ArrowLeft, Save, Trash2, MapPin, User, Mail, Truck, Phone } from 'lucide-react'
 import { UpdateOrderStatus } from '@/components/admin/UpdateOrderStatus'
 import AdminOrderClientActions from './AdminOrderClientActions'
 
@@ -17,7 +18,6 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
 
     if (!order) return <div className="p-10 text-center">Pedido no encontrado</div>
 
-    // Pasamos los datos al componente interactivo
     return (
         <div className="p-6 max-w-5xl mx-auto">
             
@@ -81,13 +81,21 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                         </h3>
                         <div className="space-y-3 text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
-                                <User className="w-4 h-4" /> 
+                                <User className="w-4 h-4 flex-shrink-0" /> 
                                 <span className="font-medium text-gray-900">{order.user?.name || order.shippingName}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-600">
-                                <Mail className="w-4 h-4" /> 
-                                <span className="text-blue-600">{order.user?.email || order.shippingEmail}</span>
+                                <Mail className="w-4 h-4 flex-shrink-0" /> 
+                                <span className="text-blue-600 break-all">{order.user?.email || order.shippingEmail}</span>
                             </div>
+                            
+                            {/* 👇 NUEVO CAMPO TELÉFONO */}
+                            {(order.shippingPhone || order.user?.phone) && (
+                                <div className="flex items-center gap-2 text-gray-600">
+                                    <Phone className="w-4 h-4 flex-shrink-0" /> 
+                                    <span className="text-gray-800">{order.shippingPhone || order.user?.phone}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

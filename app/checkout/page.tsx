@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ShieldCheck, UserCheck, Truck, MessageCircle, ArrowRight, Tag, Loader2 } from 'lucide-react'
+import { ShieldCheck, UserCheck, Truck, MessageCircle, ArrowRight, Tag, Loader2, X, Mail, Phone, User } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 
 export default function CheckoutPage() {
@@ -14,7 +14,11 @@ export default function CheckoutPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false) // Estado de carga
+  const [isProcessing, setIsProcessing] = useState(false)
+  
+  // --- ESTADO DEL MODAL (Nuevo) ---
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [guestData, setGuestData] = useState({ name: '', phone: '', email: '' })
 
   // --- CONFIGURACIÓN ENVÍO ---
   const FREE_SHIPPING_THRESHOLD = 500
@@ -34,6 +38,92 @@ export default function CheckoutPage() {
     setMounted(true)
   }, [])
 
+  // --- LÓGICA DE PROCESAMIENTO ---
+  
+  // 1. Botón Principal: Decide si procesar o pedir datos
+  const handleCheckoutClick = () => {
+    if (session?.user) {
+      // Usuario registrado: Procesar directo
+      processOrder({
+        name: session.user.name || 'Cliente',
+        email: session.user.email || 'sin-email',
+        phone: '' // Opcional si tienes el dato
+      })
+    } else {
+      // Invitado: Mostrar modal
+      setShowGuestModal(true)
+    }
+  }
+
+  // 2. Función que realmente llama a la API y abre WhatsApp
+  const processOrder = async (contactInfo: { name: string, phone: string, email: string }) => {
+    setIsProcessing(true)
+
+    try {
+      // 1. Guardar orden en Base de Datos
+      const response = await fetch('/api/checkout/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          guestInfo: contactInfo, // Datos del cliente (modal o sesión)
+          items: items.map(i => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            price: i.product.price
+          }))
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) throw new Error('Error de sesión. Intenta recargar.')
+        throw new Error(data.error || 'Error al procesar')
+      }
+
+      // 2. Generar Link de WhatsApp
+      const phone = '51926870309' 
+      const orderCode = data.orderNumber
+      
+      const productList = items.map(item => `▪️ ${item.product.name} (x${item.quantity})`).join('\n')
+      const shippingText = (cartTotal >= FREE_SHIPPING_THRESHOLD) ? 'GRATIS (Lima)' : `S/. ${SHIPPING_COST.toFixed(2)} (Lima)`
+      const finalTotal = cartTotal + ((cartTotal >= FREE_SHIPPING_THRESHOLD) ? 0 : SHIPPING_COST)
+      const totalFormatted = formatPrice(finalTotal).replace('S/', 'S/.')
+      
+      const message = `👋 Hola Servitek, soy *${contactInfo.name}*!
+      
+Acabo de generar el *Pedido #${orderCode}* en la web.
+📱 Contacto: ${contactInfo.phone}
+📧 Email: ${contactInfo.email}
+
+Detalle:
+${productList}
+
+📦 Subtotal: ${formatPrice(cartTotal).replace('S/', 'S/.')}
+🚚 Envío: ${shippingText}
+💰 *Total Final: ${totalFormatted}*
+
+Quedo atento para coordinar el pago y envío. Gracias!`
+
+
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+
+      // 3. Finalizar
+      clearCart()
+      window.open(whatsappUrl, '_blank')
+      
+      if (session) router.push('/pedidos')
+      else router.push('/') 
+
+    } catch (error: any) {
+      console.error(error)
+      alert(error.message || 'Hubo un problema. Inténtalo de nuevo.')
+    } finally {
+      setIsProcessing(false)
+      setShowGuestModal(false)
+    }
+  }
+
   if (!mounted) return null
 
   if (itemCount === 0) {
@@ -47,69 +137,12 @@ export default function CheckoutPage() {
     )
   }
 
-  // --- CÁLCULOS FINALES ---
   const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD
   const shippingPrice = isFreeShipping ? 0 : SHIPPING_COST
   const finalTotal = cartTotal + shippingPrice
 
-  // --- FUNCIÓN INTELIGENTE: GUARDAR Y REDIRIGIR ---
-  const handleProcessOrder = async () => {
-    setIsProcessing(true)
-
-    try {
-      // 1. Guardar orden en Base de Datos
-      const response = await fetch('/api/checkout/manual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) throw new Error(data.error || 'Error al procesar')
-
-      // 2. Generar Link de WhatsApp con el ID de la orden real
-      const phone = '51926870309'
-      const customerName = session?.user?.name || 'Cliente'
-      const orderCode = data.orderNumber // Código corto (ej: A1B2C3)
-      
-      const productList = items.map(item => `▪️ ${item.product.name} (x${item.quantity})`).join('\n')
-      const shippingText = isFreeShipping ? 'GRATIS (Lima)' : `S/. ${SHIPPING_COST.toFixed(2)} (Lima)`
-      const totalFormatted = formatPrice(finalTotal).replace('S/', 'S/.')
-      
-      const message = `👋 Hola Servitek, soy *${customerName}*!
-      
-Acabo de generar el *Pedido #${orderCode}* en la web.
-
-Detalle:
-${productList}
-
-📦 Subtotal: ${formatPrice(cartTotal).replace('S/', 'S/.')}
-🚚 Envío: ${shippingText}
-💰 *Total Final: ${totalFormatted}*
-
-Quedo atento para coordinar el pago y envío. Gracias!`
-
-      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-
-      // 3. Limpiar carrito visual (el de la DB ya se limpió en la API)
-      clearCart()
-
-      // 4. Abrir WhatsApp en nueva pestaña
-      window.open(whatsappUrl, '_blank')
-
-      // 5. Redirigir al usuario a "Mis Pedidos" para que vea su orden guardada
-      router.push('/pedidos')
-
-    } catch (error) {
-      console.error(error)
-      alert('Hubo un problema al procesar tu pedido. Inténtalo de nuevo.')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-12 relative">
       <div className="container mx-auto px-4 max-w-5xl">
         
         <div className="text-center mb-10">
@@ -129,7 +162,7 @@ Quedo atento para coordinar el pago y envío. Gracias!`
             
             <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-4 items-center">
+                <div key={item.productId} className="flex gap-4 items-center">
                   <div className="relative w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden border">
                     <Image 
                       src={item.product.image} 
@@ -255,16 +288,16 @@ Quedo atento para coordinar el pago y envío. Gracias!`
               </div>
             </div>
 
-            {/* BOTÓN INTELIGENTE: Guarda y luego abre WhatsApp */}
+            {/* BOTÓN INTELIGENTE */}
             <button 
-              onClick={handleProcessOrder}
+              onClick={handleCheckoutClick}
               disabled={isProcessing}
               className="group w-full bg-green-500 hover:bg-green-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all flex items-center justify-center gap-3 relative z-10 animate-pulse-slow disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="w-6 h-6 animate-spin" />
-                  <span>Procesando Pedido...</span>
+                  <span>Procesando...</span>
                 </>
               ) : (
                 <>
@@ -282,6 +315,76 @@ Quedo atento para coordinar el pago y envío. Gracias!`
 
         </div>
       </div>
+
+      {/* --- MODAL PARA INVITADOS (SE MUESTRA SOLO SI NO HAY SESIÓN) --- */}
+      {showGuestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-scale-up">
+            <button 
+              onClick={() => setShowGuestModal(false)} 
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            <div className="text-center mb-6">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <UserCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Datos de Contacto</h3>
+                <p className="text-gray-500 text-sm">Necesitamos estos datos para generar tu pedido.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="relative">
+                <User className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text" 
+                  value={guestData.name}
+                  onChange={(e) => setGuestData({...guestData, name: e.target.value})}
+                  className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Tu Nombre"
+                  autoFocus
+                />
+              </div>
+
+              <div className="relative">
+                <Phone className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input 
+                  type="tel" 
+                  value={guestData.phone}
+                  onChange={(e) => setGuestData({...guestData, phone: e.target.value})}
+                  className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Celular / WhatsApp"
+                  maxLength={9}
+                />
+              </div>
+
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input 
+                  type="email" 
+                  value={guestData.email}
+                  onChange={(e) => setGuestData({...guestData, email: e.target.value})}
+                  className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Correo Electrónico"
+                />
+              </div>
+              
+              <button 
+                onClick={() => {
+                  if(!guestData.name || !guestData.phone || !guestData.email) return alert('Por favor completa todos los campos.');
+                  processOrder(guestData)
+                }}
+                disabled={isProcessing}
+                className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-4 shadow-lg shadow-blue-500/30"
+              >
+                {isProcessing ? <Loader2 className="animate-spin" /> : 'Finalizar y Abrir WhatsApp'} <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
