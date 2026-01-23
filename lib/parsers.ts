@@ -1,98 +1,102 @@
-// Lista ampliada de palabras clave comunes en fichas técnicas (Deltron, Ingram, etc.)
-const KNOWN_KEYS = [
-  'FORMATO', 'DESCRIPCION', 'MARCA', 'MODELO', 'PART NUMBER', 'COLOR', 
-  'PANTALLA', 'RESOLUCION', 'CPU', 'PROCESADOR', 'OBSERVACIONES DE CPU', 'OBSERVACIONES', 
-  'CHIPSET', 'MEMORIA', 'RAM', 'CAPACIDAD', 'TIPO DE RANURAS', 'EXPANSION MAXIMA', 'COMENTARIOS',
-  'ALMACENAMIENTO', 'DISCO', 'TIPO DE DISCO', 'INTERFAZ', 'RANURAS DE EXPANSION',
-  'VIDEO', 'CHIPSET GRAFICO', 'SALIDAS', 'CONECTIVIDAD', 'WIRELESS', 'BLUETOOTH',
-  'SONIDO', 'PARLANTES', 'PUERTOS', 'WEBCAM', 'TOUCHPAD', 'TECLADO', 'IDIOMA DE TECLADO',
-  'ALIMENTACION', 'BATERIA', 'ADAPTADOR', 'DIMENSIONES', 'PESO', 
-  'SISTEMA OPERATIVO', 'VERSION SISTEMA', 'GARANTIA', 'CERTIFICACIONES'
+// Palabras clave principales (Secciones y Atributos)
+const KEYWORDS = [
+  'MARCA', 'MODELO', 'PART NUMBER', 'COLOR', 'PANTALLA', 'RESOLUCION', 
+  'CPU', 'PROCESADOR', 'OBSERVACIONES', 'CHIPSET', 'MEMORIA', 'RAM', 
+  'CAPACIDAD', 'BUS', 'TIPO', 'ALMACENAMIENTO', 'DISCO', 'INTERFAZ', 
+  'VIDEO', 'GRAFICOS', 'CONECTIVIDAD', 'WIRELESS', 'BLUETOOTH', 
+  'SONIDO', 'PUERTOS', 'BATERIA', 'DIMENSIONES', 'PESO', 
+  'SISTEMA OPERATIVO', 'GARANTIA', 'COMENTARIOS', 'CAMARA', 'TECLADO', 'ADAPTADOR'
 ];
 
 export const parseDeltronText = (text: string) => {
-  if (!text) return { specs: {}, description: '' };
+  // 1. CORRECCIÓN DEL ERROR DE BUILD:
+  // Devolvemos un objeto con TODOS los campos vacíos si no hay texto.
+  // Esto evita que TypeScript grite "Property 'ports' does not exist".
+  if (!text) return { 
+    specs: {}, 
+    description: '',
+    brand: '', 
+    model: '', 
+    cpu: '', 
+    ram: '', 
+    storage: '', 
+    display: '', 
+    gpu: '', 
+    ports: '', 
+    battery: '', 
+    weight: '' 
+  };
 
-  // 1. Limpieza inicial: Reemplazamos saltos de línea por un separador único
-  // para tratar todo como una sola línea y luego separar.
+  // 2. Limpieza inicial
   let cleanText = text
     .replace(/\t/g, ' ') 
-    .replace(/\n/g, ' :: ') 
+    .replace(/\n/g, '  ') 
     .replace(/\s+/g, ' '); 
 
   const specs: Record<string, string> = {};
-  const foundKeys: { key: string, index: number }[] = [];
   
-  // 2. Buscar todas las palabras clave en el texto
-  KNOWN_KEYS.forEach(key => {
-    // Buscamos la clave. El "toUpperCase" ayuda a que no importe mayúsculas/minúsculas
+  // 3. Encontrar posiciones de claves
+  const matches: { key: string, index: number }[] = [];
+  
+  KEYWORDS.forEach(key => {
     let idx = cleanText.toUpperCase().indexOf(key);
-    
-    // Si la encuentra, guardamos la posición. 
-    // Ojo: Si hay claves repetidas (ej: CAPACIDAD en RAM y en DISCO), 
-    // este parser básico tomará la primera aparición o necesitaría lógica recursiva.
-    // Para simplificar y ser rápidos, buscamos todas las ocurrencias.
     while (idx !== -1) {
-      // Verificamos si ya guardamos esta posición para no duplicar
-      if (!foundKeys.some(k => k.index === idx)) {
-         foundKeys.push({ key, index: idx });
-      }
-      // Buscar siguiente ocurrencia
+      matches.push({ key, index: idx });
       idx = cleanText.toUpperCase().indexOf(key, idx + 1);
     }
   });
 
-  // 3. Ordenar por orden de aparición
-  foundKeys.sort((a, b) => a.index - b.index);
+  matches.sort((a, b) => a.index - b.index);
 
-  // 4. Extraer valores entre claves
-  foundKeys.forEach((item, i) => {
-    const nextItem = foundKeys[i + 1];
-    const start = item.index + item.key.length;
-    const end = nextItem ? nextItem.index : cleanText.length;
+  // 4. Extraer valores
+  matches.forEach((match, i) => {
+    const nextMatch = matches[i + 1];
+    const start = match.index + match.key.length;
+    const end = nextMatch ? nextMatch.index : cleanText.length;
     
     let value = cleanText.substring(start, end).trim();
-    
-    // Limpiar basura al inicio del valor (: - .)
-    value = value.replace(/^[:\-\s\.]+/, '')
-                 .replace(/::/g, '\n') // Restaurar saltos de línea visuales
-                 .trim();
+    value = value.replace(/^[:\-\.\s]+|[:\-\.\s]+$/g, '').trim();
 
-    if (value) {
-      // Capitalizar clave para que se vea bien (FORMATO -> Formato)
-      const prettyKey = item.key.charAt(0) + item.key.slice(1).toLowerCase();
-      
-      // Si la clave ya existe (ej: Capacidad), le agregamos un sufijo o contexto si es posible,
-      // o simplemente la sobrescribimos (limitación actual aceptable para MVP)
-      if(specs[prettyKey]) {
-          specs[prettyKey + ' (Extra)'] = value;
+    if (value && value.length > 1) { 
+      const prettyKey = match.key.charAt(0) + match.key.slice(1).toLowerCase();
+      if (specs[prettyKey]) {
+         specs[prettyKey] += ` | ${value}`;
       } else {
-          specs[prettyKey] = value;
+         specs[prettyKey] = value;
       }
     }
   });
 
-  // 5. Generar una descripción HTML bonita
-  let autoDescription = '<ul class="list-disc pl-5 space-y-1 text-sm">';
-  Object.entries(specs).forEach(([key, val]) => {
-    // Filtramos campos irrelevantes para la descripción pública
-    if(!['FORMATO', 'COMENTARIOS', 'PART NUMBER'].includes(key.toUpperCase())) {
-        autoDescription += `<li><strong class="font-semibold text-gray-700">${key}:</strong> ${val.replace(/\n/g, ', ')}</li>`;
-    }
+  // Helpers
+  const find = (keys: string[]) => {
+      for (const k of keys) {
+          const foundKey = Object.keys(specs).find(sk => sk.toUpperCase().includes(k));
+          if(foundKey) return specs[foundKey];
+      }
+      return '';
+  }
+
+  // Generar descripción HTML
+  let descriptionHTML = '<ul class="space-y-1">';
+  Object.entries(specs).forEach(([k, v]) => {
+      if (!['FORMATO', 'COMENTARIOS'].includes(k.toUpperCase())) {
+          descriptionHTML += `<li><strong>${k}:</strong> ${v}</li>`;
+      }
   });
-  autoDescription += '</ul>';
+  descriptionHTML += '</ul>';
 
   return {
     specs,
-    description: autoDescription,
-    // Helpers para autocompletar inputs
-    brand: specs['Marca'] || '',
-    model: specs['Modelo'] || '',
-    cpu: specs['Cpu'] || specs['Procesador'] || '',
-    ram: specs['Memoria'] || specs['Ram'] || '',
-    storage: specs['Almacenamiento'] || specs['Disco'] || '',
-    display: specs['Pantalla'] || '',
-    gpu: specs['Video'] || specs['Chipset grafico'] || '',
-    system: specs['Sistema operativo'] || ''
+    description: descriptionHTML,
+    brand: find(['MARCA']),
+    model: find(['MODELO']),
+    cpu: find(['PROCESADOR', 'CPU']),
+    ram: find(['MEMORIA', 'RAM']),
+    storage: find(['ALMACENAMIENTO', 'DISCO']),
+    display: find(['PANTALLA']),
+    gpu: find(['VIDEO', 'GRAFICOS']),
+    ports: find(['PUERTOS']),
+    battery: find(['BATERIA']),
+    weight: find(['PESO'])
   };
 }
