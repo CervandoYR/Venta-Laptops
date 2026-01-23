@@ -1,12 +1,15 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { Edit, Eye } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import DeleteProductButton from '@/components/admin/DeleteProductButton'
-import AdminPageHeader from '@/components/admin/AdminPageHeader' // 👇 Importar
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AdminSearchFilter from '@/components/admin/AdminSearchFilter'
+import UniversalImage from '@/components/ui/UniversalImage' // 👈 IMPORTAR
 import { Prisma } from '@prisma/client'
+
+// Forzar dinamismo para ver cambios al instante
+export const dynamic = 'force-dynamic'
 
 export default async function AdminProductsPage({ 
   searchParams 
@@ -59,7 +62,6 @@ export default async function AdminProductsPage({
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
       
-      {/* 👇 HEADER CON BOTÓN ATRÁS AL DASHBOARD */}
       <AdminPageHeader 
         title="Inventario" 
         subtitle="Gestiona tu catálogo de productos"
@@ -91,8 +93,13 @@ export default async function AdminProductsPage({
                 <tr key={product.id} className="hover:bg-gray-50/50 transition">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 relative bg-gray-100 rounded border overflow-hidden flex-shrink-0">
-                        <Image src={product.image || '/placeholder.jpg'} alt="" fill className="object-contain p-1" />
+                      <div className="w-12 h-12 relative bg-white rounded border border-gray-200 overflow-hidden flex-shrink-0">
+                        {/* 👇 AQUÍ USAMOS EL COMPONENTE CLIENTE */}
+                        <UniversalImage 
+                          src={product.image || (product.images.length > 0 ? product.images[0] : '')} 
+                          alt={product.name} 
+                          className="w-full h-full object-contain p-1"
+                        />
                       </div>
                       <div>
                         <p className="font-bold text-gray-800 line-clamp-1 max-w-[200px]">{product.name}</p>

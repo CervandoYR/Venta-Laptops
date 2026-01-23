@@ -6,40 +6,42 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Product } from '@prisma/client'
-import { slugify } from '@/lib/utils' // Asegúrate de que esta función exista en utils, si no, avísame.
 import ImageUpload from '@/components/admin/ImageUpload'
+import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box } from 'lucide-react'
+import { parseDeltronText } from '@/lib/parsers'
 
-// --- 1. ESQUEMA DE VALIDACIÓN (ZOD) ---
+// Función slugify simple
+const slugify = (text: string) => {
+  return text.toString().toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '')
+}
+
+// --- 1. ESQUEMA DE VALIDACIÓN ---
 const productSchema = z.object({
-  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-  slug: z.string().min(3, 'El slug es requerido'),
-  description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
-  
-  // Precios
-  price: z.number().min(0.01, 'El precio debe ser mayor a 0'),
-  originalPrice: z.number().optional().nullable(), // 👇 NUEVO: Precio de Lista
-  
-  stock: z.number().min(0, 'El stock no puede ser negativo'),
-  
-  // Imágenes (Array)
-  images: z.array(z.string()).min(1, 'Debes subir al menos una imagen'),
-
-  // Selects
+  name: z.string().min(3, 'Nombre requerido'),
+  slug: z.string().min(3, 'Slug requerido'),
+  description: z.string().min(10, 'Descripción muy corta'),
+  price: z.number().min(0.01, 'Precio inválido'),
+  originalPrice: z.number().optional().nullable(), // ✅ CAMPO PRECIO LISTA
+  stock: z.number().min(0, 'Stock inválido'),
+  images: z.array(z.string()).min(1, 'Sube al menos una imagen'),
   category: z.string().default('Laptops'),
   condition: z.enum(['NEW', 'LIKE_NEW', 'USED', 'REFURBISHED']).default('NEW'),
   conditionDetails: z.string().optional(),
-
-  // Info Básica
-  brand: z.string().min(1, 'La marca es requerida'),
-  model: z.string().min(1, 'El modelo es requerido'),
+  brand: z.string().min(1, 'Marca requerida'),
+  model: z.string().min(1, 'Modelo requerido'),
   
-  // Specs Técnicas
+  // Specs Fijas
   cpu: z.string().optional(),
   ram: z.string().optional(),
   storage: z.string().optional(),
   display: z.string().optional(),
   gpu: z.string().optional(),
-
+  
   // Specs Detalladas
   connectivity: z.string().optional(),
   ports: z.string().optional(),
@@ -48,6 +50,9 @@ const productSchema = z.object({
   weight: z.string().optional(),
   sound: z.string().optional(),
 
+  // ✅ Specs Dinámicas (JSON)
+  specifications: z.record(z.string()).optional(), 
+
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
 })
@@ -55,29 +60,26 @@ const productSchema = z.object({
 type ProductFormData = z.infer<typeof productSchema>
 
 interface ProductFormProps {
-  product?: Product | null // Aceptamos null para cuando es nuevo
+  product?: any // Usamos any para permitir el campo specifications json
 }
 
-// --- 2. COMPONENTE PRINCIPAL ---
 export function ProductForm({ product }: ProductFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  
+  // Estados para Importador y Tabla
+  const [showImporter, setShowImporter] = useState(false)
+  const [pasteContent, setPasteContent] = useState('')
+  const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([])
 
-  // Configuración del Formulario
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-    setValue,
-  } = useForm<ProductFormData>({
+  const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: product
       ? {
           ...product,
-          // Mapeo de campos opcionales para evitar nulls
-          originalPrice: product.originalPrice, // 👇 Cargar precio original
+          price: Number(product.price),
+          originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
           cpu: product.cpu || '', 
           ram: product.ram || '', 
           storage: product.storage || '', 
@@ -90,249 +92,237 @@ export function ProductForm({ product }: ProductFormProps) {
           weight: product.weight || '', 
           sound: product.sound || '',
           category: product.category || 'Laptops',
-          condition: (product.condition as any) || 'NEW',
+          condition: product.condition || 'NEW',
           conditionDetails: product.conditionDetails || '',
-          // Manejo de compatibilidad de imágenes (string único vs array)
           images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
+          specifications: product.specifications || {}
         }
       : {
-          slug: '', 
-          featured: false, 
-          active: true, 
-          stock: 0, 
-          category: 'Laptops', 
-          condition: 'NEW', 
-          images: [],
-          originalPrice: null,
-      }
+          slug: '', featured: false, active: true, stock: 0, category: 'Laptops', condition: 'NEW', images: [], originalPrice: null, specifications: {}
+        }
   })
 
-  // Auto-generar slug si cambia el nombre
-  const name = watch('name')
+  // Cargar tabla inicial
   useEffect(() => {
-    if (name && !product && !watch('slug')) {
-      setValue('slug', slugify(name))
+    if (product?.specifications && specsList.length === 0) {
+      const list = Object.entries(product.specifications).map(([key, value]) => ({ 
+        key, value: String(value) 
+      }))
+      setSpecsList(list)
     }
-  }, [name, product, setValue, watch])
+  }, [product])
 
-  // Lógica visual condicional
-  const currentCategory = watch('category')
-  const showSpecs = ['Laptops', 'PC Escritorio', 'Monitores', 'All in One'].includes(currentCategory)
-  const currentCondition = watch('condition')
-  const currentImages = watch('images') || []
+  // Sincronizar Tabla -> Formulario
+  useEffect(() => {
+    const specsObject: Record<string, string> = {}
+    specsList.forEach(item => {
+      if(item.key && item.value) specsObject[item.key] = item.value
+    })
+    form.setValue('specifications', specsObject)
+  }, [specsList])
 
-  // --- 3. ENVÍO DEL FORMULARIO ---
-  async function onSubmit(data: ProductFormData) {
+  // Auto-slug
+  const nameValue = form.watch('name')
+  useEffect(() => {
+    if (nameValue && !product && !form.watch('slug')) {
+      form.setValue('slug', slugify(nameValue))
+    }
+  }, [nameValue, product, form])
+
+  // --- IMPORTADOR IA ---
+  const handleSmartImport = () => {
+    if (!pasteContent) return
+    const parsed = parseDeltronText(pasteContent)
+    
+    // Llenar campos fijos
+    if (parsed.brand) form.setValue('brand', parsed.brand)
+    if (parsed.model) form.setValue('model', parsed.model)
+    if (parsed.cpu) form.setValue('cpu', parsed.cpu)
+    if (parsed.ram) form.setValue('ram', parsed.ram)
+    if (parsed.storage) form.setValue('storage', parsed.storage)
+    if (parsed.display) form.setValue('display', parsed.display)
+    if (parsed.gpu) form.setValue('gpu', parsed.gpu)
+    if (parsed.ports) form.setValue('ports', parsed.ports)
+    if (parsed.battery) form.setValue('battery', parsed.battery)
+    
+    // Llenar tabla dinámica
+    const newSpecs = Object.entries(parsed.specs).map(([key, value]) => ({ key, value }))
+    const currentKeys = specsList.map(s => s.key)
+    const filteredNewSpecs = newSpecs.filter(s => !currentKeys.includes(s.key))
+    setSpecsList(prev => [...prev, ...filteredNewSpecs])
+
+    if (!form.getValues('name')) {
+       form.setValue('name', `${parsed.brand} ${parsed.model} ${parsed.cpu || ''}`.trim())
+    }
+    if (!form.getValues('description')) {
+        form.setValue('description', parsed.description)
+    }
+    setShowImporter(false)
+    setPasteContent('')
+  }
+
+  const onSubmit = async (data: ProductFormData) => {
     setError('')
     setLoading(true)
-
     try {
-      // Preparamos payload (asegurando compatibilidad con campo 'image' legacy)
-      const payload = { 
-        ...data, 
-        image: data.images[0] || '' 
-      }
-
+      const payload = { ...data, image: data.images[0] || '' }
       const url = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
-      const method = product ? 'PUT' : 'POST' // Usamos PUT para editar
+      const method = product ? 'PUT' : 'POST'
 
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Error al guardar')
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Error al guardar')
 
       router.push('/admin/productos')
       router.refresh()
     } catch (err: any) {
       console.error(err)
-      setError(err.message || 'Error al guardar el producto')
+      setError(err.message || 'Error al guardar')
       setLoading(false)
     }
   }
 
-  // Helpers para imágenes
-  const handleImageChange = (url: string) => {
-    setValue('images', [...currentImages, url], { shouldValidate: true })
+  // Helpers Tabla
+  const addSpecRow = () => setSpecsList([...specsList, { key: '', value: '' }])
+  const removeSpecRow = (idx: number) => setSpecsList(specsList.filter((_, i) => i !== idx))
+  const updateSpecRow = (idx: number, field: 'key' | 'value', val: string) => {
+    const newList = [...specsList]
+    newList[idx][field] = val
+    setSpecsList(newList)
   }
-  const handleImageRemove = (url: string) => {
-    setValue('images', currentImages.filter(i => i !== url), { shouldValidate: true })
-  }
+
+  const currentImages = form.watch('images') || []
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8 border border-gray-100">
-      
-      {/* MENSAJE DE ERROR GLOBAL */}
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 flex items-center gap-2">
-           ❌ {error}
-        </div>
-      )}
-
-      {/* SECCIÓN 1: IMÁGENES (MÚLTIPLES) */}
-      <div>
-        <label className="block text-sm font-bold text-gray-800 mb-2">Galería de Imágenes *</label>
-        <ImageUpload 
-            value={currentImages} 
-            onChange={handleImageChange}
-            onRemove={handleImageRemove}
-        />
-        {errors.images && <p className="text-red-600 text-sm mt-1">{errors.images.message}</p>}
-      </div>
-
-      {/* SECCIÓN 2: INFO BÁSICA */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Nombre del Producto *</label>
-          <input {...register('name')} className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
-          {errors.name && <p className="text-red-600 text-sm">{errors.name.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Slug (URL Amigable) *</label>
-          <input {...register('slug')} className="w-full p-2 border rounded-md bg-gray-50" />
-          {errors.slug && <p className="text-red-600 text-sm">{errors.slug.message}</p>}
-        </div>
-      </div>
-
-      {/* SECCIÓN 3: PRECIOS Y STOCK (CON CAMPO NUEVO) */}
-      <div className="grid md:grid-cols-3 gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-        <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1">Precio Venta (S/) *</label>
-          <input 
-            type="number" 
-            step="0.01" 
-            {...register('price', { valueAsNumber: true })} 
-            className="w-full p-2 border rounded-md font-bold text-lg" 
-          />
-          {errors.price && <p className="text-red-600 text-sm">{errors.price.message}</p>}
-        </div>
-
-        {/* 👇 CAMPO NUEVO PARA OFERTAS */}
-        <div>
-          <label className="block text-sm font-bold text-blue-800 mb-1">Precio Lista (Antes)</label>
-          <input 
-            type="number" 
-            step="0.01" 
-            placeholder="Opcional"
-            {...register('originalPrice', { valueAsNumber: true })} 
-            className="w-full p-2 border border-blue-200 rounded-md bg-white" 
-          />
-          <p className="text-[10px] text-blue-600 mt-1">Llénalo para mostrar etiqueta de oferta.</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Stock Disponible *</label>
-          <input 
-            type="number" 
-            {...register('stock', { valueAsNumber: true })} 
-            className="w-full p-2 border rounded-md" 
-          />
-          {errors.stock && <p className="text-red-600 text-sm">{errors.stock.message}</p>}
-        </div>
-      </div>
-
-      {/* SECCIÓN 4: CATEGORÍA Y CONDICIÓN */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Categoría</label>
-          <select {...register('category')} className="w-full p-2 border rounded-md bg-white">
-            <option value="Laptops">Laptops</option>
-            <option value="PC Escritorio">PC Escritorio</option>
-            <option value="Monitores">Monitores</option>
-            <option value="Periféricos">Periféricos</option>
-            <option value="Audio">Audio</option>
-            <option value="Componentes">Componentes</option>
-            <option value="Otros">Otros</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Condición</label>
-          <select {...register('condition')} className="w-full p-2 border rounded-md bg-white">
-            <option value="NEW">Nuevo (Sellado)</option>
-            <option value="LIKE_NEW">Como Nuevo (Open Box)</option>
-            <option value="USED">Usado / Segunda</option>
-            <option value="REFURBISHED">Reacondicionado</option>
-          </select>
-        </div>
-      </div>
-
-      {currentCondition !== 'NEW' && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md animate-fade-in-down">
-            <label className="block text-sm font-bold text-yellow-800 mb-1">Detalles del estado (Imperfecciones, caja, etc)</label>
-            <input {...register('conditionDetails')} className="w-full p-2 border border-yellow-300 rounded-md" placeholder="Ej: Rayón leve en tapa, sin caja original..." />
-        </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Descripción Detallada *</label>
-        <textarea {...register('description')} rows={4} className="w-full p-2 border rounded-md" />
-        {errors.description && <p className="text-red-600 text-sm">{errors.description.message}</p>}
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <div><label className="block text-sm font-medium mb-1">Marca *</label><input {...register('brand')} className="w-full p-2 border rounded-md" /></div>
-        <div><label className="block text-sm font-medium mb-1">Modelo *</label><input {...register('model')} className="w-full p-2 border rounded-md" /></div>
-      </div>
-
-      {/* ESPECIFICACIONES TÉCNICAS (SOLO SI APLICA) */}
-      {showSpecs && (
-        <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                🛠️ Especificaciones Técnicas
-                <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">Opcionales pero recomendados</span>
-            </h3>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-                <div><label className="block text-sm font-medium mb-1">Procesador (CPU)</label><input {...register('cpu')} className="w-full p-2 border rounded-md" placeholder="Ej: Intel Core i7-1355U" /></div>
-                <div><label className="block text-sm font-medium mb-1">Memoria RAM</label><input {...register('ram')} className="w-full p-2 border rounded-md" placeholder="Ej: 16GB DDR5" /></div>
-                <div><label className="block text-sm font-medium mb-1">Almacenamiento</label><input {...register('storage')} className="w-full p-2 border rounded-md" placeholder="Ej: 1TB SSD NVMe" /></div>
-                <div><label className="block text-sm font-medium mb-1">Pantalla</label><input {...register('display')} className="w-full p-2 border rounded-md" placeholder='Ej: 15.6" FHD IPS 144Hz' /></div>
-                <div><label className="block text-sm font-medium mb-1">Gráficos (GPU)</label><input {...register('gpu')} className="w-full p-2 border rounded-md" placeholder="Ej: NVIDIA RTX 4060 8GB" /></div>
-                
-                {/* CAMPOS DETALLADOS */}
-                <div className="col-span-2 border-t pt-4 mt-2"><p className="text-sm font-bold text-gray-700">Detalles Extra</p></div>
-                
-                <div><label className="block text-sm font-medium mb-1">Conectividad</label><input {...register('connectivity')} className="w-full p-2 border rounded-md" placeholder="Wi-Fi 6, Bluetooth 5.3" /></div>
-                <div><label className="block text-sm font-medium mb-1">Puertos</label><input {...register('ports')} className="w-full p-2 border rounded-md" placeholder="1x HDMI 2.1, 2x USB-C..." /></div>
-                <div><label className="block text-sm font-medium mb-1">Batería</label><input {...register('battery')} className="w-full p-2 border rounded-md" placeholder="3 celdas, 56Wh" /></div>
-                <div><label className="block text-sm font-medium mb-1">Sonido</label><input {...register('sound')} className="w-full p-2 border rounded-md" placeholder="Stereo con Dolby Atmos" /></div>
-                <div><label className="block text-sm font-medium mb-1">Dimensiones</label><input {...register('dimensions')} className="w-full p-2 border rounded-md" placeholder="36 x 24 x 1.9 cm" /></div>
-                <div><label className="block text-sm font-medium mb-1">Peso</label><input {...register('weight')} className="w-full p-2 border rounded-md" placeholder="1.8 kg" /></div>
+    <div className="relative">
+        
+      {/* MODAL IMPORTADOR */}
+      {showImporter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[70vh] flex flex-col overflow-hidden">
+                <div className="p-5 border-b bg-blue-50 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-blue-600" /> Importador IA</h3>
+                    <button onClick={() => setShowImporter(false)}><X className="w-5 h-5 text-gray-500" /></button>
+                </div>
+                <div className="flex-1 p-4 bg-gray-50 overflow-auto">
+                    <textarea className="w-full h-full p-4 border rounded-xl font-mono text-xs focus:ring-2 focus:ring-blue-500" placeholder="Pega aquí el texto de Deltron..." value={pasteContent} onChange={(e) => setPasteContent(e.target.value)} />
+                </div>
+                <div className="p-5 border-t bg-white flex justify-end gap-3">
+                    <button onClick={() => setShowImporter(false)} className="px-4 py-2 border rounded-lg text-gray-600 font-bold">Cancelar</button>
+                    <button onClick={handleSmartImport} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 flex items-center gap-2"><ClipboardPaste className="w-4 h-4" /> Procesar</button>
+                </div>
             </div>
         </div>
       )}
 
-      {/* ESTADO DE VISIBILIDAD */}
-      <div className="flex gap-6 border-t pt-6 bg-gray-50 p-4 rounded-lg">
-        <label className="flex items-center space-x-3 cursor-pointer">
-            <input type="checkbox" {...register('featured')} className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" />
-            <span className="text-sm font-bold text-gray-700">⭐ Destacado en Inicio</span>
-        </label>
-        <label className="flex items-center space-x-3 cursor-pointer">
-            <input type="checkbox" {...register('active')} className="w-5 h-5 rounded text-green-600 focus:ring-green-500" />
-            <span className="text-sm font-bold text-gray-700">✅ Activo (Visible en tienda)</span>
-        </label>
-      </div>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8 border border-gray-100">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-center pb-4 border-b">
+            <h2 className="text-xl font-bold text-gray-800">{product ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+            <button type="button" onClick={() => setShowImporter(true)} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-100"><Sparkles className="w-4 h-4" /> Importar Datos</button>
+        </div>
 
-      <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-white border-t p-4 z-10">
-        <button 
-            type="button" 
-            onClick={() => router.back()} 
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-        >
-            Cancelar
-        </button>
-        <button 
-            type="submit" 
-            disabled={loading} 
-            className="px-8 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
-        >
-            {loading ? 'Guardando...' : (product ? 'Actualizar Producto' : 'Crear Producto')}
-        </button>
-      </div>
-    </form>
+        {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">❌ {error}</div>}
+
+        {/* IMÁGENES */}
+        <div>
+            <label className="block text-sm font-bold text-gray-800 mb-2">Galería de Imágenes *</label>
+            <ImageUpload value={currentImages} onChange={(url) => form.setValue('images', [...currentImages, url])} onRemove={(url) => form.setValue('images', currentImages.filter(i => i !== url))} />
+            {form.formState.errors.images && <p className="text-red-600 text-sm mt-1">{form.formState.errors.images.message}</p>}
+        </div>
+
+        {/* INFO BÁSICA */}
+        <div className="grid md:grid-cols-2 gap-6">
+            <div><label className="block text-sm font-medium mb-1">Nombre *</label><input {...form.register('name')} className="w-full p-2 border rounded-md" /></div>
+            <div><label className="block text-sm font-medium mb-1">Slug *</label><input {...form.register('slug')} className="w-full p-2 border rounded-md bg-gray-50" /></div>
+        </div>
+
+        {/* PRECIOS Y STOCK */}
+        <div className="grid md:grid-cols-3 gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+            <div><label className="block text-sm font-bold text-gray-800 mb-1">Precio Venta (S/) *</label><input type="number" step="0.01" {...form.register('price', { valueAsNumber: true })} className="w-full p-2 border rounded-md font-bold text-lg" /></div>
+            <div><label className="block text-sm font-bold text-blue-800 mb-1">Precio Lista (Antes)</label><input type="number" step="0.01" {...form.register('originalPrice', { valueAsNumber: true })} className="w-full p-2 border border-blue-200 rounded-md bg-white text-gray-500" placeholder="Opcional" /></div>
+            <div><label className="block text-sm font-medium mb-1">Stock *</label><input type="number" {...form.register('stock', { valueAsNumber: true })} className="w-full p-2 border rounded-md" /></div>
+        </div>
+
+        {/* CATEGORÍA Y CONDICIÓN */}
+        <div className="grid md:grid-cols-2 gap-6">
+            <div>
+                <label className="block text-sm font-medium mb-1">Categoría</label>
+                <select {...form.register('category')} className="w-full p-2 border rounded-md bg-white">
+                    {['Laptops', 'PC Escritorio', 'Monitores', 'Periféricos', 'Componentes', 'Audio'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Condición</label>
+                <select {...form.register('condition')} className="w-full p-2 border rounded-md bg-white">
+                    <option value="NEW">Nuevo</option><option value="LIKE_NEW">Como Nuevo</option><option value="USED">Usado</option>
+                </select>
+            </div>
+        </div>
+
+        {/* DESCRIPCIÓN */}
+        <div>
+            <label className="block text-sm font-medium mb-1">Descripción (HTML) *</label>
+            <textarea {...form.register('description')} rows={4} className="w-full p-2 border rounded-md" />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+            <div><label className="block text-sm font-medium mb-1">Marca *</label><input {...form.register('brand')} className="w-full p-2 border rounded-md" /></div>
+            <div><label className="block text-sm font-medium mb-1">Modelo *</label><input {...form.register('model')} className="w-full p-2 border rounded-md" /></div>
+        </div>
+
+        {/* ESPECIFICACIONES FIJAS */}
+        <div className="border-t pt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-blue-600" /> Información Técnica</h3>
+            <div className="grid md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <input {...form.register('cpu')} placeholder="CPU" className="p-2 border rounded-md" />
+                <input {...form.register('ram')} placeholder="RAM" className="p-2 border rounded-md" />
+                <input {...form.register('storage')} placeholder="Disco" className="p-2 border rounded-md" />
+                <input {...form.register('display')} placeholder="Pantalla" className="p-2 border rounded-md" />
+                <input {...form.register('gpu')} placeholder="Video" className="p-2 border rounded-md" />
+                <input {...form.register('battery')} placeholder="Batería" className="p-2 border rounded-md" />
+            </div>
+        </div>
+
+        {/* ✅ ESPECIFICACIONES DINÁMICAS (TABLA) */}
+        <div className="border-t pt-6">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Box className="w-5 h-5 text-blue-600" /> Detalles Adicionales</h3>
+                <button type="button" onClick={addSpecRow} className="text-xs bg-gray-100 px-3 py-1 rounded font-bold hover:bg-gray-200">+ Agregar Fila</button>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                    <tbody className="divide-y">
+                        {specsList.map((spec, idx) => (
+                            <tr key={idx} className="group hover:bg-gray-50">
+                                <td className="p-1"><input value={spec.key} onChange={(e) => updateSpecRow(idx, 'key', e.target.value)} className="w-full p-2 font-bold outline-none bg-transparent" placeholder="Característica" /></td>
+                                <td className="p-1"><input value={spec.value} onChange={(e) => updateSpecRow(idx, 'value', e.target.value)} className="w-full p-2 outline-none bg-transparent" placeholder="Valor" /></td>
+                                <td className="p-1 w-10 text-center"><button type="button" onClick={() => removeSpecRow(idx)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></td>
+                            </tr>
+                        ))}
+                        {specsList.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 text-xs">Sin datos extra. Usa "Importar Datos" arriba.</td></tr>}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {/* VISIBILIDAD */}
+        <div className="flex gap-6 border-t pt-6">
+            <label className="flex items-center gap-2"><input type="checkbox" {...form.register('featured')} className="w-5 h-5" /> <span className="text-sm font-bold">Destacado</span></label>
+            <label className="flex items-center gap-2"><input type="checkbox" {...form.register('active')} className="w-5 h-5" /> <span className="text-sm font-bold">Activo</span></label>
+        </div>
+
+        <div className="flex justify-end gap-4 pt-4 border-t sticky bottom-0 bg-white z-10 p-4">
+            <button type="button" onClick={() => router.back()} className="px-6 py-2 border rounded-lg font-bold text-gray-600">Cancelar</button>
+            <button type="submit" disabled={loading} className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md">{loading ? 'Guardando...' : 'Guardar Producto'}</button>
+        </div>
+      </form>
+    </div>
   )
 }

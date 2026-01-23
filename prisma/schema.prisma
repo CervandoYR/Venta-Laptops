@@ -51,7 +51,6 @@ model User {
   address       String?
   phone         String?
   
-  // 👇 CAMPOS NUEVOS PARA RECUPERAR CONTRASEÑA
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
 
@@ -91,6 +90,9 @@ model Product {
   dimensions   String?
   weight       String?
   sound        String?
+
+  // 👇 NUEVO CAMPO FLEXIBLE PARA ESPECIFICACIONES EXTRA
+  specifications Json?    
 
   stock       Int      @default(0)
   featured    Boolean  @default(false)

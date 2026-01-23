@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProductGalleryProps {
   images: string[]
@@ -9,81 +9,83 @@ interface ProductGalleryProps {
 }
 
 export default function ProductGallery({ images, productName }: ProductGalleryProps) {
-  // Si no hay imágenes, usamos el placeholder
-  const validImages = images.length > 0 ? images : ['/placeholder.png']
-  
-  // Usamos el ÍNDICE (0, 1, 2...) para saber cuál mostramos y poder sumar/restar
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedImage, setSelectedImage] = useState(0)
 
-  // Funciones para las flechas
-  const handlePrev = () => {
-    setSelectedIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1))
+  // Asegurar que siempre haya al menos una imagen (fallback)
+  const displayImages = images.length > 0 ? images : ['/placeholder-laptop.jpg']
+
+  const nextImage = () => {
+    setSelectedImage((prev) => (prev + 1) % displayImages.length)
   }
 
-  const handleNext = () => {
-    setSelectedIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1))
+  const prevImage = () => {
+    setSelectedImage((prev) => (prev - 1 + displayImages.length) % displayImages.length)
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* IMAGEN GRANDE PRINCIPAL */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-white border flex items-center justify-center group">
+    <div className="space-y-4">
+      
+      {/* IMAGEN PRINCIPAL */}
+      <div className="relative aspect-square md:aspect-[4/3] bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm group">
         
-        {/* Foto */}
-        <Image
-          src={validImages[selectedIndex]}
-          alt={`${productName} - Imagen ${selectedIndex + 1}`}
-          fill
-          className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
-          priority
-          sizes="(max-width: 768px) 100vw, 50vw"
+        {/* Usamos <img> estándar para máxima compatibilidad con links externos */}
+        <img
+          src={displayImages[selectedImage]}
+          alt={`${productName} - Vista ${selectedImage + 1}`}
+          className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+          referrerPolicy="no-referrer" // Truco para evitar bloqueos de algunos sitios
+          onError={(e) => {
+             e.currentTarget.style.display = 'none';
+             if(e.currentTarget.parentElement) {
+                 e.currentTarget.parentElement.classList.add('flex', 'items-center', 'justify-center', 'bg-gray-50');
+                 e.currentTarget.parentElement.innerHTML = '<span class="text-gray-400 text-sm">Imagen no disponible</span>';
+             }
+          }}
         />
 
-        {/* FLECHAS DE NAVEGACIÓN (Solo si hay más de 1 foto) */}
-        {validImages.length > 1 && (
+        {/* Botones de Navegación (Solo si hay más de 1 imagen) */}
+        {displayImages.length > 1 && (
           <>
             <button 
-                onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              onClick={prevImage}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md backdrop-blur-sm transition opacity-0 group-hover:opacity-100"
             >
-                ❮
+              <ChevronLeft className="w-6 h-6" />
             </button>
             <button 
-                onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              onClick={nextImage}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-md backdrop-blur-sm transition opacity-0 group-hover:opacity-100"
             >
-                ❯
+              <ChevronRight className="w-6 h-6" />
             </button>
           </>
         )}
-        
-        {/* Etiqueta de Zoom (Opcional) */}
-        <div className="absolute top-2 right-2 bg-black/5 text-xs text-gray-500 px-2 py-1 rounded-full backdrop-blur-sm pointer-events-none">
-           {selectedIndex + 1} / {validImages.length}
-        </div>
+
+        {/* Badge de conteo */}
+        {displayImages.length > 1 && (
+            <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
+                {selectedImage + 1} / {displayImages.length}
+            </div>
+        )}
       </div>
 
-      {/* MINIATURAS (CARRUSEL DE ABAJO) */}
-      {validImages.length > 1 && (
-        <div className="grid grid-cols-5 gap-2 overflow-x-auto pb-2">
-          {validImages.map((img, idx) => (
+      {/* MINIATURAS (CARRUSEL INFERIOR) */}
+      {displayImages.length > 1 && (
+        <div className="flex gap-4 overflow-x-auto pb-2 px-1 snap-x no-scrollbar">
+          {displayImages.map((img, idx) => (
             <button
               key={idx}
-              onClick={() => setSelectedIndex(idx)}
+              onClick={() => setSelectedImage(idx)}
               className={`
-                relative aspect-square border rounded-md overflow-hidden bg-white 
-                transition-all cursor-pointer
-                ${selectedIndex === idx 
-                    ? 'ring-2 ring-blue-600 ring-offset-1 opacity-100' 
-                    : 'opacity-60 hover:opacity-100 hover:ring-2 hover:ring-gray-300'}
+                relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all snap-start
+                ${selectedImage === idx ? 'border-blue-600 shadow-md ring-2 ring-blue-100' : 'border-transparent opacity-70 hover:opacity-100'}
               `}
             >
-              <Image
+              <img
                 src={img}
-                alt={`Vista ${idx + 1}`}
-                fill
-                className="object-contain p-1"
-                sizes="100px"
+                alt={`Miniatura ${idx + 1}`}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
               />
             </button>
           ))}

@@ -1,11 +1,11 @@
 'use client'
 
-import Image from 'next/image'
-import Link from 'next/link'
 import { Product } from '@prisma/client'
 import { formatPrice } from '@/lib/utils'
 import { ShoppingCart, AlertCircle } from 'lucide-react'
 import { useCart } from '@/contexts/CartContext'
+import UniversalImage from '@/components/ui/UniversalImage' // ✅ Usamos el componente seguro
+import Link from 'next/link'
 
 interface ProductCardProps {
   product: Product
@@ -14,25 +14,23 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart()
 
-  // 1. Calcular Descuento
+  // Calcular Descuento
   const hasDiscount = (product as any).originalPrice && (product as any).originalPrice > product.price
   const discountPercentage = hasDiscount 
     ? Math.round((((product as any).originalPrice! - product.price) / (product as any).originalPrice!) * 100)
     : 0
 
-  // 2. Lógica de Stock
   const isLowStock = product.stock > 0 && product.stock <= 5
   const isOutOfStock = product.stock === 0
-
-  // 3. Envío Gratis (Ej: Si cuesta más de 500)
   const hasFreeShipping = product.price >= 500
 
+  // Fallback de imagen
   const displayImage = product.images?.[0] || product.image || '/placeholder-laptop.jpg'
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 group flex flex-col h-full relative overflow-hidden">
       
-      {/* --- ETIQUETAS FLOTANTES IZQUIERDA --- */}
+      {/* --- ETIQUETAS --- */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
         {product.condition === 'NEW' ? (
           <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
@@ -43,32 +41,36 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.condition === 'LIKE_NEW' ? 'Open Box' : 'Refurbished'}
           </span>
         )}
-
         {hasFreeShipping && (
           <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
-            Envío Gratis Lima
+            Envío Gratis
           </span>
         )}
       </div>
 
-      {/* --- ETIQUETA DESCUENTO DERECHA --- */}
       {hasDiscount && (
         <div className="absolute top-3 right-3 z-10 bg-red-600 text-white w-12 h-12 flex items-center justify-center rounded-full font-bold text-sm shadow-md animate-pulse-slow">
           -{discountPercentage}%
         </div>
       )}
 
-      {/* --- IMAGEN --- */}
-      <Link href={`/productos/${product.slug}`} className="relative h-56 w-full bg-gray-50 overflow-hidden block">
-        <Image
-          src={displayImage}
-          alt={product.name}
-          fill
-          className={`object-contain p-6 transition-transform duration-500 group-hover:scale-110 ${isOutOfStock ? 'opacity-50 grayscale' : ''}`}
-        />
+      {/* --- IMAGEN (Ajustada para uniformidad) --- */}
+      <Link href={`/productos/${product.slug}`} className="relative h-64 w-full bg-white overflow-hidden block border-b border-gray-50">
+        {/* CAMBIO CLAVE: p-8 en lugar de p-6.
+            Más padding hace que las imágenes grandes (cuadradas) se reduzcan visualmente,
+            igualándose con las rectangulares. El bg-white ayuda a que se vea limpio.
+        */}
+        <div className="absolute inset-0 p-8 flex items-center justify-center">
+            <UniversalImage
+              src={displayImage}
+              alt={product.name}
+              className={`w-full h-full object-contain transition-transform duration-500 group-hover:scale-110 ${isOutOfStock ? 'opacity-50 grayscale' : ''}`}
+            />
+        </div>
+        
         {isOutOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50">
-            <span className="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">AGOTADO</span>
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50 z-20">
+            <span className="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold shadow-lg">AGOTADO</span>
           </div>
         )}
       </Link>
@@ -104,8 +106,11 @@ export function ProductCard({ product }: ProductCardProps) {
               
               {!isOutOfStock && (
                 <button 
-                  onClick={() => addItem(product)}
-                  className="bg-blue-100 text-blue-600 p-2 rounded-full hover:bg-blue-600 hover:text-white transition-colors"
+                  onClick={(e) => {
+                      e.preventDefault(); // Evitar navegar al producto al hacer click en carrito
+                      addItem(product);
+                  }}
+                  className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95"
                   title="Agregar al carrito"
                 >
                   <ShoppingCart className="w-5 h-5" />
