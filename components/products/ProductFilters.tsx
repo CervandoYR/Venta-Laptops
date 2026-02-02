@@ -24,7 +24,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
   const searchParams = useSearchParams()
   const [isOpen, setIsOpen] = useState(false)
 
-  // --- ESTADOS LOCALES (Para respuesta instantánea) ---
+  // Estados visuales instantáneos
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
   const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') || '')
   const [selectedCondition, setSelectedCondition] = useState(searchParams.get('condition') || '')
@@ -33,7 +33,10 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
   const [maxPrice, setMaxPrice] = useState(searchParams.get('max') || '')
   const [localSearch, setLocalSearch] = useState(searchParams.get('q') || '')
 
-  // Sincronizar con URL (Por si el usuario usa "Atrás")
+  // 🆕 ESTADO PARA BUSCAR MARCAS EN EL FILTRO
+  const [brandFilterTerm, setBrandFilterTerm] = useState('')
+
+  // Sincronizar URL
   useEffect(() => {
     setSelectedCategory(searchParams.get('category') || '')
     setSelectedBrand(searchParams.get('brand') || '')
@@ -43,19 +46,15 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     setLocalSearch(searchParams.get('q') || '')
   }, [searchParams])
 
-  // --- FUNCIÓN DE FILTRADO ---
   const applyFilter = (key: string, value: string | null) => {
-    // 1. UI Optimista (Cambio visual inmediato)
     if (key === 'category') setSelectedCategory(value || '')
     if (key === 'brand') setSelectedBrand(value || '')
     if (key === 'condition') setSelectedCondition(value || '')
 
-    // 2. Lógica URL
     const params = new URLSearchParams(searchParams.toString())
     if (value) params.set(key, value)
     else params.delete(key)
     
-    // Evita el scroll al top
     router.push(`/?${params.toString()}`, { scroll: false })
   }
 
@@ -82,6 +81,9 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     setLocalSearch('')
     router.push('/', { scroll: false })
   }
+
+  // Filtrar la lista de marcas visible
+  const visibleBrands = brands.filter(b => b.toLowerCase().includes(brandFilterTerm.toLowerCase()))
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
@@ -114,9 +116,9 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
       {/* CONTENIDO */}
       <div className={`p-5 space-y-8 ${isOpen ? 'block' : 'hidden md:block'}`}>
         
-        {/* Buscador */}
+        {/* Buscador General */}
         <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Buscar</h4>
+          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Buscar Productos</h4>
           <form onSubmit={handleLocalSearch} className="relative">
             <input 
               type="text" 
@@ -129,7 +131,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
           </form>
         </div>
 
-        {/* Categorías (SIN RADIO BUTTONS) */}
+        {/* Categorías */}
         <div>
           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Categorías</h4>
           <div className="space-y-1">
@@ -153,10 +155,25 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
           </div>
         </div>
 
-        {/* Marcas */}
+        {/* Marcas (CON BUSCADOR INTEGRADO) */}
         {brands.length > 0 && (
           <div>
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Marcas</h4>
+            
+            {/* Input para buscar marcas dentro del filtro */}
+            {brands.length > 5 && (
+                <div className="mb-2 relative">
+                    <input 
+                        type="text" 
+                        placeholder="Buscar marca..." 
+                        value={brandFilterTerm}
+                        onChange={(e) => setBrandFilterTerm(e.target.value)}
+                        className="w-full p-2 pl-8 text-xs border rounded-md bg-gray-50 outline-none focus:border-blue-300"
+                    />
+                    <Search className="w-3 h-3 absolute left-2.5 top-2.5 text-gray-400" />
+                </div>
+            )}
+
             <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
               <button 
                   onClick={() => applyFilter('brand', null)}
@@ -165,16 +182,21 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
                   <span>Todas</span>
                   {!selectedBrand && <Check className="w-4 h-4" />}
               </button>
-              {brands.map((brand) => (
-                <button 
-                  key={brand}
-                  onClick={() => applyFilter('brand', brand)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedBrand === brand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-                >
-                  <span>{brand}</span>
-                  {selectedBrand === brand && <Check className="w-4 h-4" />}
-                </button>
-              ))}
+              
+              {visibleBrands.length > 0 ? (
+                  visibleBrands.map((brand) => (
+                    <button 
+                      key={brand}
+                      onClick={() => applyFilter('brand', brand)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedBrand === brand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      <span>{brand}</span>
+                      {selectedBrand === brand && <Check className="w-4 h-4" />}
+                    </button>
+                  ))
+              ) : (
+                  <p className="text-xs text-gray-400 text-center py-2">No encontrada</p>
+              )}
             </div>
           </div>
         )}

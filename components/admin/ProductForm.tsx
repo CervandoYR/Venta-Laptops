@@ -1,30 +1,41 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import ImageUpload from '@/components/admin/ImageUpload'
-import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box, ChevronDown, Check, AlertCircle } from 'lucide-react'
 import { parseDeltronText } from '@/lib/parsers'
 import { useToast } from '@/contexts/ToastContext'
 
+// --- LISTA MAESTRA DE MARCAS ---
+const POPULAR_BRANDS = [
+  'HP', 'Lenovo', 'Dell', 'Asus', 'Acer', 'MSI', 'Apple', 
+  'Samsung', 'LG', 'Logitech', 'Razer', 'Corsair', 'HyperX', 
+  'Kingston', 'Western Digital', 'Seagate', 'Intel', 'AMD', 
+  'Nvidia', 'Gigabyte', 'Epson', 'Canon', 'Brother', 'Xiaomi'
+]
+
+// Slugify helper (Limpia el texto para la URL)
 const slugify = (text: string) => text.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '')
 
+// ✅ SCHEMA DE VALIDACIÓN (Mensajes de error personalizados)
 const productSchema = z.object({
-  name: z.string().min(3, 'Nombre requerido'),
-  slug: z.string().min(3, 'Slug requerido'),
-  description: z.string().min(10, 'Descripción muy corta'),
-  price: z.number().min(0.01, 'Precio inválido'),
+  name: z.string().min(3, 'El nombre es muy corto (mínimo 3 letras)'),
+  slug: z.string().min(3, 'El enlace (slug) es obligatorio'),
+  description: z.string().optional(), // 👈 AHORA ES OPCIONAL
+  price: z.number({ invalid_type_error: "Ingresa un precio válido" }).min(0.01, 'El precio debe ser mayor a 0'),
   originalPrice: z.number().optional().nullable(),
-  stock: z.number().min(0, 'Stock inválido'),
-  images: z.array(z.string()).min(1, 'Sube al menos una imagen'),
+  stock: z.number({ invalid_type_error: "Ingresa un stock válido" }).min(0, 'El stock no puede ser negativo'),
+  images: z.array(z.string()).min(1, 'Debes subir al menos una imagen principal'),
   category: z.string().default('Laptops'),
   condition: z.enum(['NEW', 'LIKE_NEW', 'USED', 'REFURBISHED']).default('NEW'),
   conditionDetails: z.string().optional(),
-  brand: z.string().min(1, 'Marca requerida'),
-  model: z.string().min(1, 'Modelo requerido'),
+  brand: z.string().min(1, 'Debes seleccionar o escribir una marca'),
+  model: z.string().min(1, 'El modelo es obligatorio'),
+  // Specs opcionales
   cpu: z.string().optional(),
   ram: z.string().optional(),
   storage: z.string().optional(),
@@ -52,9 +63,16 @@ export function ProductForm({ product }: ProductFormProps) {
   const { showAdminToast, showError } = useToast()
   const [loading, setLoading] = useState(false)
   
+  // Estados para Importador
   const [showImporter, setShowImporter] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
+  
+  // Estado para la tabla dinámica de specs
   const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([])
+
+  // --- LÓGICA DEL COMBOBOX DE MARCAS ---
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false)
+  const brandWrapperRef = useRef<HTMLDivElement>(null)
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -77,14 +95,29 @@ export function ProductForm({ product }: ProductFormProps) {
           category: product.category || 'Laptops',
           condition: product.condition || 'NEW',
           conditionDetails: product.conditionDetails || '',
+          brand: product.brand || '',
+          model: product.model || '',
+          description: product.description || '',
           images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
           specifications: product.specifications || {}
         }
       : {
-          slug: '', featured: false, active: true, stock: 0, category: 'Laptops', condition: 'NEW', images: [], originalPrice: null, specifications: {}
+          slug: '', featured: false, active: true, stock: 0, category: 'Laptops', condition: 'NEW', images: [], originalPrice: null, specifications: {}, description: ''
         }
   })
 
+  // Cerrar dropdown de marcas al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (brandWrapperRef.current && !brandWrapperRef.current.contains(event.target as Node)) {
+        setShowBrandDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Sincronizar Specs JSON <-> UI
   useEffect(() => {
     if (product?.specifications && specsList.length === 0) {
       const list = Object.entries(product.specifications).map(([key, value]) => ({ key, value: String(value) }))
@@ -98,13 +131,16 @@ export function ProductForm({ product }: ProductFormProps) {
     form.setValue('specifications', specsObject)
   }, [specsList])
 
+  // --- AUTOCOMPLETADO INTELIGENTE DEL SLUG ---
   const nameValue = form.watch('name')
   useEffect(() => {
-    if (nameValue && !product && !form.watch('slug')) {
-      form.setValue('slug', slugify(nameValue))
+    // Si estamos CREANDO un producto nuevo (no editando), actualizamos el slug automáticamente
+    if (nameValue && !product) {
+      form.setValue('slug', slugify(nameValue), { shouldValidate: true })
     }
   }, [nameValue, product, form])
 
+  // Importador IA (Deltron Parser)
   const handleSmartImport = () => {
     if (!pasteContent) return
     const parsed = parseDeltronText(pasteContent)
@@ -133,6 +169,7 @@ export function ProductForm({ product }: ProductFormProps) {
     setPasteContent('')
   }
 
+  // Guardar Producto
   const onSubmit = async (data: ProductFormData) => {
     setLoading(true)
     try {
@@ -170,10 +207,17 @@ export function ProductForm({ product }: ProductFormProps) {
   }
 
   const currentImages = form.watch('images') || []
+  
+  // Filtrado de marcas para el dropdown
+  const brandInput = form.watch('brand')
+  const filteredBrands = POPULAR_BRANDS.filter(b => 
+    b.toLowerCase().includes(brandInput?.toLowerCase() || '')
+  )
 
   return (
     <div className="relative">
       
+      {/* MODAL IMPORTADOR */}
       {showImporter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[70vh] flex flex-col overflow-hidden">
@@ -194,11 +238,13 @@ export function ProductForm({ product }: ProductFormProps) {
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8 border border-gray-100">
         
+        {/* HEADER */}
         <div className="flex justify-between items-center pb-4 border-b">
             <h2 className="text-xl font-bold text-gray-800">{product ? 'Editar Producto' : 'Nuevo Producto'}</h2>
             <button type="button" onClick={() => setShowImporter(true)} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-100"><Sparkles className="w-4 h-4" /> Importar Datos</button>
         </div>
 
+        {/* IMÁGENES */}
         <div>
             <label className="block text-sm font-bold text-gray-800 mb-2">Galería de Imágenes *</label>
             <ImageUpload 
@@ -206,20 +252,70 @@ export function ProductForm({ product }: ProductFormProps) {
                 onChange={(url) => form.setValue('images', [...currentImages, url], { shouldValidate: true })} 
                 onRemove={(url) => form.setValue('images', currentImages.filter(i => i !== url), { shouldValidate: true })} 
             />
-            {form.formState.errors.images && <p className="text-red-600 text-sm mt-1">{form.formState.errors.images.message}</p>}
+            {/* 🔴 MENSAJE ERROR IMÁGENES */}
+            {form.formState.errors.images && (
+                <p className="text-red-500 text-xs mt-2 flex items-center gap-1 font-medium animate-pulse">
+                    <AlertCircle className="w-3 h-3" /> {form.formState.errors.images.message}
+                </p>
+            )}
         </div>
 
+        {/* INFO BÁSICA MEJORADA (NOMBRE Y SLUG) */}
         <div className="grid md:grid-cols-2 gap-6">
-            <div><label className="block text-sm font-medium mb-1">Nombre *</label><input {...form.register('name')} className="w-full p-2 border rounded-md" /></div>
-            <div><label className="block text-sm font-medium mb-1">Slug *</label><input {...form.register('slug')} className="w-full p-2 border rounded-md bg-gray-50" /></div>
+            {/* Campo Nombre */}
+            <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">Nombre del Producto *</label>
+                <input 
+                    {...form.register('name')} 
+                    className={`w-full p-2.5 border rounded-lg transition-all outline-none ${form.formState.errors.name ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-500'}`}
+                    placeholder="Ej: Laptop Asus TUF Gaming F15..."
+                />
+                {/* 🔴 MENSAJE ERROR NOMBRE */}
+                {form.formState.errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{form.formState.errors.name.message}</p>}
+            </div>
+
+            {/* Campo Slug con UX Mejorada */}
+            <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">Enlace (Slug) *</label>
+                <div className="flex">
+                    <span className="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg font-mono select-none">
+                        /productos/
+                    </span>
+                    <input 
+                        {...form.register('slug')} 
+                        className={`w-full p-2.5 border border-gray-300 rounded-r-lg outline-none font-mono text-sm transition-all focus:ring-2 focus:ring-blue-500 ${product ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
+                        placeholder="se-genera-solo"
+                        readOnly={!!product} // Se bloquea si es edición
+                    />
+                </div>
+                {form.formState.errors.slug && <p className="text-red-500 text-xs mt-1 font-medium">{form.formState.errors.slug.message}</p>}
+                <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                    {product 
+                        ? "🔒 La URL no se puede cambiar para no perder el posicionamiento en Google." 
+                        : "✨ Se genera automáticamente al escribir el nombre."}
+                </p>
+            </div>
         </div>
 
+        {/* PRECIOS Y STOCK */}
         <div className="grid md:grid-cols-3 gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-            <div><label className="block text-sm font-bold text-gray-800 mb-1">Precio Venta (S/) *</label><input type="number" step="0.01" {...form.register('price', { valueAsNumber: true })} className="w-full p-2 border rounded-md font-bold text-lg" /></div>
-            <div><label className="block text-sm font-bold text-blue-800 mb-1">Precio Lista (Antes)</label><input type="number" step="0.01" {...form.register('originalPrice', { valueAsNumber: true })} className="w-full p-2 border border-blue-200 rounded-md bg-white text-gray-500" placeholder="Opcional" /></div>
-            <div><label className="block text-sm font-medium mb-1">Stock *</label><input type="number" {...form.register('stock', { valueAsNumber: true })} className="w-full p-2 border rounded-md" /></div>
+            <div>
+                <label className="block text-sm font-bold text-gray-800 mb-1">Precio Venta (S/) *</label>
+                <input type="number" step="0.01" {...form.register('price', { valueAsNumber: true })} className={`w-full p-2 border rounded-md font-bold text-lg ${form.formState.errors.price ? 'border-red-400 focus:ring-red-200' : 'border-blue-200'}`} />
+                {form.formState.errors.price && <p className="text-red-600 text-xs mt-1 font-bold">{form.formState.errors.price.message}</p>}
+            </div>
+            <div>
+                <label className="block text-sm font-bold text-blue-800 mb-1">Precio Lista (Antes)</label>
+                <input type="number" step="0.01" {...form.register('originalPrice', { valueAsNumber: true })} className="w-full p-2 border border-blue-200 rounded-md bg-white text-gray-500" placeholder="Opcional" />
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Stock *</label>
+                <input type="number" {...form.register('stock', { valueAsNumber: true })} className={`w-full p-2 border rounded-md ${form.formState.errors.stock ? 'border-red-400' : ''}`} />
+                {form.formState.errors.stock && <p className="text-red-600 text-xs mt-1">{form.formState.errors.stock.message}</p>}
+            </div>
         </div>
 
+        {/* CATEGORÍA Y CONDICIÓN */}
         <div className="grid md:grid-cols-2 gap-6">
             <div>
                 <label className="block text-sm font-medium mb-1">Categoría</label>
@@ -233,21 +329,66 @@ export function ProductForm({ product }: ProductFormProps) {
                     <option value="NEW">Nuevo (Sellado)</option>
                     <option value="LIKE_NEW">Como Nuevo (Open Box)</option>
                     <option value="USED">Usado</option>
-                    <option value="REFURBISHED">Reacondicionado</option> {/* ✅ AGREGADO */}
+                    <option value="REFURBISHED">Reacondicionado</option>
                 </select>
             </div>
         </div>
 
+        {/* DESCRIPCIÓN OPCIONAL */}
         <div>
-            <label className="block text-sm font-medium mb-1">Descripción (HTML) *</label>
-            <textarea {...form.register('description')} rows={4} className="w-full p-2 border rounded-md" />
+            <label className="block text-sm font-medium mb-1">Descripción <span className="text-gray-400 font-normal text-xs">(Opcional, Puede ser Texto o HTML para mejorar texto)</span></label>
+            <textarea 
+                {...form.register('description')} 
+                rows={4} 
+                className="w-full p-2 border border-gray-300 rounded-md text-sm transition-all focus:ring-2 focus:ring-blue-500 outline-none" 
+                placeholder="Escribe los detalles aquí..." 
+            />
+            <p className="text-xs text-gray-400 mt-1">Puedes escribir texto normal. Si deseas formato avanzado (negrita, listas), puedes usar etiquetas HTML básicas.</p>
         </div>
 
+        {/* MARCA Y MODELO */}
         <div className="grid md:grid-cols-2 gap-6">
-            <div><label className="block text-sm font-medium mb-1">Marca *</label><input {...form.register('brand')} className="w-full p-2 border rounded-md" /></div>
-            <div><label className="block text-sm font-medium mb-1">Modelo *</label><input {...form.register('model')} className="w-full p-2 border rounded-md" /></div>
+            {/* ✅ COMBOBOX DE MARCA INTELIGENTE */}
+            <div className="relative" ref={brandWrapperRef}>
+                <label className="block text-sm font-medium mb-1">Marca *</label>
+                <div className="relative">
+                    <input 
+                        {...form.register('brand')} 
+                        className={`w-full p-2 border rounded-md pr-10 ${form.formState.errors.brand ? 'border-red-300 focus:ring-red-200' : 'border-gray-300'}`} 
+                        placeholder="Selecciona o escribe..."
+                        onFocus={() => setShowBrandDropdown(true)}
+                        autoComplete="off"
+                    />
+                    <button type="button" onClick={() => setShowBrandDropdown(!showBrandDropdown)} className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"><ChevronDown className="w-4 h-4" /></button>
+                </div>
+                
+                {/* 🔴 MENSAJE ERROR MARCA */}
+                {form.formState.errors.brand && <p className="text-red-500 text-xs mt-1 font-medium">{form.formState.errors.brand.message}</p>}
+
+                {showBrandDropdown && (
+                    <div className="absolute z-10 w-full bg-white mt-1 border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {filteredBrands.length > 0 ? (
+                            filteredBrands.map(b => (
+                                <button key={b} type="button" onClick={() => { form.setValue('brand', b); setShowBrandDropdown(false) }} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm flex justify-between items-center group">
+                                    {b} {form.watch('brand') === b && <Check className="w-4 h-4 text-blue-600" />}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-4 py-2 text-xs text-gray-500 italic">Presiona enter para guardar "{brandInput}" como nueva marca.</div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium mb-1">Modelo *</label>
+                <input {...form.register('model')} className={`w-full p-2 border rounded-md ${form.formState.errors.model ? 'border-red-300 focus:ring-red-200' : 'border-gray-300'}`} />
+                {/* 🔴 MENSAJE ERROR MODELO */}
+                {form.formState.errors.model && <p className="text-red-500 text-xs mt-1 font-medium">{form.formState.errors.model.message}</p>}
+            </div>
         </div>
 
+        {/* ESPECIFICACIONES TÉCNICAS */}
         <div className="border-t pt-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-blue-600" /> Información Técnica</h3>
             <div className="grid md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -260,6 +401,7 @@ export function ProductForm({ product }: ProductFormProps) {
             </div>
         </div>
 
+        {/* DETALLES ADICIONALES */}
         <div className="border-t pt-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Box className="w-5 h-5 text-blue-600" /> Detalles Adicionales</h3>
@@ -281,6 +423,7 @@ export function ProductForm({ product }: ProductFormProps) {
             </div>
         </div>
 
+        {/* VISIBILIDAD */}
         <div className="flex gap-6 border-t pt-6">
             <label className="flex items-center gap-2"><input type="checkbox" {...form.register('featured')} className="w-5 h-5" /> <span className="text-sm font-bold">Destacado</span></label>
             <label className="flex items-center gap-2"><input type="checkbox" {...form.register('active')} className="w-5 h-5" /> <span className="text-sm font-bold">Activo</span></label>
