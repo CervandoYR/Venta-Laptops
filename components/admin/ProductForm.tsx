@@ -5,28 +5,19 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Product } from '@prisma/client'
 import ImageUpload from '@/components/admin/ImageUpload'
-import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box } from 'lucide-react'
+import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box, Image as ImageIcon } from 'lucide-react'
 import { parseDeltronText } from '@/lib/parsers'
+import { useToast } from '@/contexts/ToastContext'
 
-// Función slugify simple
-const slugify = (text: string) => {
-  return text.toString().toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '')
-}
+const slugify = (text: string) => text.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '')
 
-// --- 1. ESQUEMA DE VALIDACIÓN ---
 const productSchema = z.object({
   name: z.string().min(3, 'Nombre requerido'),
   slug: z.string().min(3, 'Slug requerido'),
   description: z.string().min(10, 'Descripción muy corta'),
   price: z.number().min(0.01, 'Precio inválido'),
-  originalPrice: z.number().optional().nullable(), // ✅ CAMPO PRECIO LISTA
+  originalPrice: z.number().optional().nullable(),
   stock: z.number().min(0, 'Stock inválido'),
   images: z.array(z.string()).min(1, 'Sube al menos una imagen'),
   category: z.string().default('Laptops'),
@@ -34,25 +25,18 @@ const productSchema = z.object({
   conditionDetails: z.string().optional(),
   brand: z.string().min(1, 'Marca requerida'),
   model: z.string().min(1, 'Modelo requerido'),
-  
-  // Specs Fijas
   cpu: z.string().optional(),
   ram: z.string().optional(),
   storage: z.string().optional(),
   display: z.string().optional(),
   gpu: z.string().optional(),
-  
-  // Specs Detalladas
   connectivity: z.string().optional(),
   ports: z.string().optional(),
   battery: z.string().optional(),
   dimensions: z.string().optional(),
   weight: z.string().optional(),
   sound: z.string().optional(),
-
-  // ✅ Specs Dinámicas (JSON)
   specifications: z.record(z.string()).optional(), 
-
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
 })
@@ -60,15 +44,14 @@ const productSchema = z.object({
 type ProductFormData = z.infer<typeof productSchema>
 
 interface ProductFormProps {
-  product?: any // Usamos any para permitir el campo specifications json
+  product?: any
 }
 
 export function ProductForm({ product }: ProductFormProps) {
   const router = useRouter()
+  const { showAdminToast, showError } = useToast()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   
-  // Estados para Importador y Tabla
   const [showImporter, setShowImporter] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
   const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([])
@@ -102,26 +85,19 @@ export function ProductForm({ product }: ProductFormProps) {
         }
   })
 
-  // Cargar tabla inicial
   useEffect(() => {
     if (product?.specifications && specsList.length === 0) {
-      const list = Object.entries(product.specifications).map(([key, value]) => ({ 
-        key, value: String(value) 
-      }))
+      const list = Object.entries(product.specifications).map(([key, value]) => ({ key, value: String(value) }))
       setSpecsList(list)
     }
   }, [product])
 
-  // Sincronizar Tabla -> Formulario
   useEffect(() => {
     const specsObject: Record<string, string> = {}
-    specsList.forEach(item => {
-      if(item.key && item.value) specsObject[item.key] = item.value
-    })
+    specsList.forEach(item => { if(item.key && item.value) specsObject[item.key] = item.value })
     form.setValue('specifications', specsObject)
   }, [specsList])
 
-  // Auto-slug
   const nameValue = form.watch('name')
   useEffect(() => {
     if (nameValue && !product && !form.watch('slug')) {
@@ -129,12 +105,9 @@ export function ProductForm({ product }: ProductFormProps) {
     }
   }, [nameValue, product, form])
 
-  // --- IMPORTADOR IA ---
   const handleSmartImport = () => {
     if (!pasteContent) return
     const parsed = parseDeltronText(pasteContent)
-    
-    // Llenar campos fijos
     if (parsed.brand) form.setValue('brand', parsed.brand)
     if (parsed.model) form.setValue('model', parsed.model)
     if (parsed.cpu) form.setValue('cpu', parsed.cpu)
@@ -145,7 +118,6 @@ export function ProductForm({ product }: ProductFormProps) {
     if (parsed.ports) form.setValue('ports', parsed.ports)
     if (parsed.battery) form.setValue('battery', parsed.battery)
     
-    // Llenar tabla dinámica
     const newSpecs = Object.entries(parsed.specs).map(([key, value]) => ({ key, value }))
     const currentKeys = specsList.map(s => s.key)
     const filteredNewSpecs = newSpecs.filter(s => !currentKeys.includes(s.key))
@@ -162,7 +134,6 @@ export function ProductForm({ product }: ProductFormProps) {
   }
 
   const onSubmit = async (data: ProductFormData) => {
-    setError('')
     setLoading(true)
     try {
       const payload = { ...data, image: data.images[0] || '' }
@@ -178,16 +149,18 @@ export function ProductForm({ product }: ProductFormProps) {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Error al guardar')
 
+      showAdminToast(product ? 'Producto actualizado correctamente' : 'Producto creado con éxito')
+      
       router.push('/admin/productos')
       router.refresh()
     } catch (err: any) {
       console.error(err)
-      setError(err.message || 'Error al guardar')
+      showError(err.message || 'Error al guardar')
+    } finally {
       setLoading(false)
     }
   }
 
-  // Helpers Tabla
   const addSpecRow = () => setSpecsList([...specsList, { key: '', value: '' }])
   const removeSpecRow = (idx: number) => setSpecsList(specsList.filter((_, i) => i !== idx))
   const updateSpecRow = (idx: number, field: 'key' | 'value', val: string) => {
@@ -200,8 +173,7 @@ export function ProductForm({ product }: ProductFormProps) {
 
   return (
     <div className="relative">
-        
-      {/* MODAL IMPORTADOR */}
+      
       {showImporter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[70vh] flex flex-col overflow-hidden">
@@ -222,35 +194,32 @@ export function ProductForm({ product }: ProductFormProps) {
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8 border border-gray-100">
         
-        {/* HEADER */}
         <div className="flex justify-between items-center pb-4 border-b">
             <h2 className="text-xl font-bold text-gray-800">{product ? 'Editar Producto' : 'Nuevo Producto'}</h2>
             <button type="button" onClick={() => setShowImporter(true)} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-100"><Sparkles className="w-4 h-4" /> Importar Datos</button>
         </div>
 
-        {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">❌ {error}</div>}
-
-        {/* IMÁGENES */}
         <div>
             <label className="block text-sm font-bold text-gray-800 mb-2">Galería de Imágenes *</label>
-            <ImageUpload value={currentImages} onChange={(url) => form.setValue('images', [...currentImages, url])} onRemove={(url) => form.setValue('images', currentImages.filter(i => i !== url))} />
+            <ImageUpload 
+                value={currentImages} 
+                onChange={(url) => form.setValue('images', [...currentImages, url], { shouldValidate: true })} 
+                onRemove={(url) => form.setValue('images', currentImages.filter(i => i !== url), { shouldValidate: true })} 
+            />
             {form.formState.errors.images && <p className="text-red-600 text-sm mt-1">{form.formState.errors.images.message}</p>}
         </div>
 
-        {/* INFO BÁSICA */}
         <div className="grid md:grid-cols-2 gap-6">
             <div><label className="block text-sm font-medium mb-1">Nombre *</label><input {...form.register('name')} className="w-full p-2 border rounded-md" /></div>
             <div><label className="block text-sm font-medium mb-1">Slug *</label><input {...form.register('slug')} className="w-full p-2 border rounded-md bg-gray-50" /></div>
         </div>
 
-        {/* PRECIOS Y STOCK */}
         <div className="grid md:grid-cols-3 gap-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
             <div><label className="block text-sm font-bold text-gray-800 mb-1">Precio Venta (S/) *</label><input type="number" step="0.01" {...form.register('price', { valueAsNumber: true })} className="w-full p-2 border rounded-md font-bold text-lg" /></div>
             <div><label className="block text-sm font-bold text-blue-800 mb-1">Precio Lista (Antes)</label><input type="number" step="0.01" {...form.register('originalPrice', { valueAsNumber: true })} className="w-full p-2 border border-blue-200 rounded-md bg-white text-gray-500" placeholder="Opcional" /></div>
             <div><label className="block text-sm font-medium mb-1">Stock *</label><input type="number" {...form.register('stock', { valueAsNumber: true })} className="w-full p-2 border rounded-md" /></div>
         </div>
 
-        {/* CATEGORÍA Y CONDICIÓN */}
         <div className="grid md:grid-cols-2 gap-6">
             <div>
                 <label className="block text-sm font-medium mb-1">Categoría</label>
@@ -261,12 +230,14 @@ export function ProductForm({ product }: ProductFormProps) {
             <div>
                 <label className="block text-sm font-medium mb-1">Condición</label>
                 <select {...form.register('condition')} className="w-full p-2 border rounded-md bg-white">
-                    <option value="NEW">Nuevo</option><option value="LIKE_NEW">Como Nuevo</option><option value="USED">Usado</option>
+                    <option value="NEW">Nuevo (Sellado)</option>
+                    <option value="LIKE_NEW">Como Nuevo (Open Box)</option>
+                    <option value="USED">Usado</option>
+                    <option value="REFURBISHED">Reacondicionado</option> {/* ✅ AGREGADO */}
                 </select>
             </div>
         </div>
 
-        {/* DESCRIPCIÓN */}
         <div>
             <label className="block text-sm font-medium mb-1">Descripción (HTML) *</label>
             <textarea {...form.register('description')} rows={4} className="w-full p-2 border rounded-md" />
@@ -277,7 +248,6 @@ export function ProductForm({ product }: ProductFormProps) {
             <div><label className="block text-sm font-medium mb-1">Modelo *</label><input {...form.register('model')} className="w-full p-2 border rounded-md" /></div>
         </div>
 
-        {/* ESPECIFICACIONES FIJAS */}
         <div className="border-t pt-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-blue-600" /> Información Técnica</h3>
             <div className="grid md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -290,7 +260,6 @@ export function ProductForm({ product }: ProductFormProps) {
             </div>
         </div>
 
-        {/* ✅ ESPECIFICACIONES DINÁMICAS (TABLA) */}
         <div className="border-t pt-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Box className="w-5 h-5 text-blue-600" /> Detalles Adicionales</h3>
@@ -312,7 +281,6 @@ export function ProductForm({ product }: ProductFormProps) {
             </div>
         </div>
 
-        {/* VISIBILIDAD */}
         <div className="flex gap-6 border-t pt-6">
             <label className="flex items-center gap-2"><input type="checkbox" {...form.register('featured')} className="w-5 h-5" /> <span className="text-sm font-bold">Destacado</span></label>
             <label className="flex items-center gap-2"><input type="checkbox" {...form.register('active')} className="w-5 h-5" /> <span className="text-sm font-bold">Activo</span></label>

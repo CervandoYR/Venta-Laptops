@@ -33,11 +33,18 @@ export default async function ProductDetailPage({ params }: Props) {
   const conditionLabels: Record<string, { label: string; class: string }> = {
     NEW: { label: 'Nuevo Sellado', class: 'bg-green-100 text-green-800' },
     LIKE_NEW: { label: 'Como Nuevo', class: 'bg-blue-100 text-blue-800' },
-    USED: { label: 'Segunda Mano', class: 'bg-orange-100 text-orange-800' },
+    USED: { label: 'Usado', class: 'bg-orange-100 text-orange-800' },
     REFURBISHED: { label: 'Reacondicionado', class: 'bg-purple-100 text-purple-800' }
   };
   // @ts-ignore
   const conditionInfo = conditionLabels[product.condition] || conditionLabels.NEW;
+
+  // --- 🆕 LÓGICA DE AHORRO ---
+  const hasDiscount = product.originalPrice && product.originalPrice > product.price
+  const savingsAmount = hasDiscount ? (product.originalPrice! - product.price) : 0
+  const discountPercentage = hasDiscount 
+    ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
+    : 0
 
   // LOGICA SPECS
   const fixedSpecs = [
@@ -115,6 +122,13 @@ export default async function ProductDetailPage({ params }: Props) {
           <div className="flex flex-wrap items-center gap-3 mb-4">
              <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider">{product.category}</span>
              <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${conditionInfo.class}`}>{conditionInfo.label}</span>
+             
+             {/* 🆕 ETIQUETA DE PORCENTAJE */}
+             {hasDiscount && (
+                <span className="text-xs font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
+                    ¡Oferta -{discountPercentage}%!
+                </span>
+             )}
           </div>
 
           <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight">{product.name}</h1>
@@ -131,7 +145,17 @@ export default async function ProductDetailPage({ params }: Props) {
                         </span>
                     )}
                 </div>
+                
+                {/* 🆕 MENSAJE DE AHORRO */}
+                {hasDiscount && (
+                    <div className="mt-2 inline-flex items-center gap-2">
+                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold border border-red-200 flex items-center gap-1">
+                            🔥 ¡Ahorras {formatPrice(savingsAmount)}!
+                        </span>
+                    </div>
+                )}
             </div>
+            
             {product.stock > 0 ? (
                 <div className="text-right">
                     <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold mb-1">

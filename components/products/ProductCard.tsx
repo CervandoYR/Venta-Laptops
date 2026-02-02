@@ -1,11 +1,11 @@
 'use client'
 
 import { Product } from '@prisma/client'
+import UniversalImage from '@/components/ui/UniversalImage'
+import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { ShoppingCart, AlertCircle } from 'lucide-react'
 import { useCart } from '@/contexts/CartContext'
-import UniversalImage from '@/components/ui/UniversalImage' // ✅ Usamos el componente seguro
-import Link from 'next/link'
 
 interface ProductCardProps {
   product: Product
@@ -27,20 +27,28 @@ export function ProductCard({ product }: ProductCardProps) {
   // Fallback de imagen
   const displayImage = product.images?.[0] || product.image || '/placeholder-laptop.jpg'
 
+  // --- LÓGICA DE ETIQUETAS CORREGIDA ---
+  const getConditionLabel = (condition: string) => {
+    switch (condition) {
+      case 'NEW': return { text: 'Nuevo', color: 'bg-blue-600' }
+      case 'LIKE_NEW': return { text: 'Open Box', color: 'bg-teal-600' }
+      case 'USED': return { text: 'Usado', color: 'bg-orange-500' } // ✅ CAMBIADO A "Usado"
+      case 'REFURBISHED': return { text: 'Reacondicionado', color: 'bg-purple-600' }
+      default: return { text: 'Usado', color: 'bg-gray-600' }
+    }
+  }
+
+  const conditionStyle = getConditionLabel(product.condition)
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 group flex flex-col h-full relative overflow-hidden">
       
-      {/* --- ETIQUETAS --- */}
+      {/* ETIQUETAS FLOTANTES */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-        {product.condition === 'NEW' ? (
-          <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
-            Nuevo
-          </span>
-        ) : (
-          <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
-            {product.condition === 'LIKE_NEW' ? 'Open Box' : 'Refurbished'}
-          </span>
-        )}
+        <span className={`${conditionStyle.color} text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm`}>
+            {conditionStyle.text}
+        </span>
+
         {hasFreeShipping && (
           <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider shadow-sm">
             Envío Gratis
@@ -54,12 +62,8 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       )}
 
-      {/* --- IMAGEN (Ajustada para uniformidad) --- */}
+      {/* IMAGEN */}
       <Link href={`/productos/${product.slug}`} className="relative h-64 w-full bg-white overflow-hidden block border-b border-gray-50">
-        {/* CAMBIO CLAVE: p-8 en lugar de p-6.
-            Más padding hace que las imágenes grandes (cuadradas) se reduzcan visualmente,
-            igualándose con las rectangulares. El bg-white ayuda a que se vea limpio.
-        */}
         <div className="absolute inset-0 p-8 flex items-center justify-center">
             <UniversalImage
               src={displayImage}
@@ -75,7 +79,7 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </Link>
 
-      {/* --- INFO --- */}
+      {/* INFO */}
       <div className="p-5 flex-1 flex flex-col">
         <div className="text-xs text-gray-500 mb-2 uppercase tracking-wide font-semibold flex justify-between items-center">
           <span>{product.brand}</span>
@@ -107,7 +111,7 @@ export function ProductCard({ product }: ProductCardProps) {
               {!isOutOfStock && (
                 <button 
                   onClick={(e) => {
-                      e.preventDefault(); // Evitar navegar al producto al hacer click en carrito
+                      e.preventDefault(); 
                       addItem(product);
                   }}
                   className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95"

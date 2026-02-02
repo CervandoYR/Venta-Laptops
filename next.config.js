@@ -2,7 +2,7 @@
 const nextConfig = {
   images: {
     // 'domains' es la forma antigua, pero la dejamos por compatibilidad
-    domains: ['localhost', 'via.placeholder.com'], 
+    domains: ['localhost', 'via.placeholder.com, res.cloudinary.com'], 
     remotePatterns: [
       {
         protocol: 'https',
