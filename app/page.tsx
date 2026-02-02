@@ -9,11 +9,10 @@ import { Prisma } from '@prisma/client'
 import { FeaturedCarousel } from '@/components/products/FeaturedCarousel'
 import BenefitsSection from '@/components/ui/BenefitsSection'
 import FloatingWhatsApp from '@/components/ui/FloatingWhatsApp'
-import { ClientsCarousel } from '@/components/ui/ClientsCarousel' // Importamos el nuevo carrusel
+import { ClientsCarousel } from '@/components/ui/ClientsCarousel'
 
 export const dynamic = 'force-dynamic'
 
-// Iconos para las categorías rápidas
 const CATEGORY_ICONS: Record<string, string> = {
   'Laptops': '💻',
   'PC Escritorio': '🖥️',
@@ -37,7 +36,7 @@ interface PageProps {
 
 export default async function HomePage({ searchParams }: PageProps) {
   
-  // 1. CARGA DE DATOS (Configuración y Destacados)
+  // 1. DATA FETCHING
   const [config, featuredProducts] = await Promise.all([
     prisma.storeConfig.findFirst(),
     prisma.product.findMany({
@@ -54,7 +53,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     carouselImages: []
   }
 
-  // 2. FILTROS Y BÚSQUEDA
+  // 2. FILTROS
   const { q, category, min, max, brand, condition } = searchParams
 
   const searchFilter = q ? {
@@ -84,7 +83,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     orderBy: { createdAt: 'desc' },
   })
 
-  // Obtener marcas para el filtro lateral
+  // Marcas para el sidebar
   const brandsGroup = await prisma.product.groupBy({
     by: ['brand'],
     where: { active: true },
@@ -93,21 +92,18 @@ export default async function HomePage({ searchParams }: PageProps) {
   const availableBrands = brandsGroup.map(b => b.brand)
 
   return (
-    <main className="bg-gray-50 min-h-screen pb-0"> {/* pb-0 para que el footer pegue bien */}
+    <main className="bg-gray-50 min-h-screen pb-0">
       
       <FloatingWhatsApp />
 
-      {/* --- HERO SECTION --- */}
+      {/* HERO */}
       <section className="bg-gradient-to-br from-gray-900 to-blue-900 text-white py-16 relative overflow-hidden">
-        {/* Fondo decorativo */}
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none mix-blend-overlay">
             {siteConfig.heroImage && <Image src={siteConfig.heroImage} alt="Background" fill className="object-cover" priority />}
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            
-            {/* Texto Hero */}
             <div className="space-y-6 text-center md:text-left animate-fade-in-up">
               <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold uppercase tracking-wider">
                 🚀 Envíos a todo el Perú
@@ -118,29 +114,24 @@ export default async function HomePage({ searchParams }: PageProps) {
               <p className="text-lg text-blue-100 max-w-lg mx-auto md:mx-0 leading-relaxed">
                 {siteConfig.heroText}
               </p>
-              
               <div className="pt-4 max-w-md mx-auto md:mx-0">
                 <SearchBar />
               </div>
             </div>
             
-            {/* Carrusel Hero */}
             <div className="relative w-full h-64 sm:h-80 md:h-[400px] rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">
                <ImageCarousel images={siteConfig.carouselImages || []} />
-               {/* Sombra interna para profundidad */}
                <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-2xl pointer-events-none"></div>
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* --- BARRA DE BENEFICIOS --- */}
       <div className="-mt-8 relative z-20 container mx-auto px-4">
          <BenefitsSection />
       </div>
 
-      {/* --- FILTROS RÁPIDOS DE CATEGORÍA --- */}
+      {/* --- FILTROS RÁPIDOS (STICKY BAR) --- */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm mt-12">
         <div className="container mx-auto px-4 py-3">
           <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center md:justify-center">
@@ -150,6 +141,7 @@ export default async function HomePage({ searchParams }: PageProps) {
                 <Link 
                   key={cat}
                   href={cat === 'Todos' ? '/' : `/?category=${cat}`}
+                  scroll={false} // 👈 ¡ESTA ES LA SOLUCIÓN! Evita el salto al inicio
                   className={`
                     flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border
                     ${isActive 
@@ -166,25 +158,23 @@ export default async function HomePage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* --- CARRUSEL DE OFERTAS (Si no hay búsqueda activa) --- */}
+      {/* CARRUSEL OFERTAS */}
       {!q && !category && featuredProducts.length > 0 && (
         <div className="py-8 bg-gradient-to-b from-white to-gray-50">
             <FeaturedCarousel title="🔥 Ofertas Relámpago" products={featuredProducts} />
         </div>
       )}
 
-      {/* --- CATÁLOGO PRINCIPAL CON SIDEBAR --- */}
+      {/* CATÁLOGO + SIDEBAR */}
       <div className="container mx-auto px-4 py-12">
         <div className="flex flex-col md:flex-row gap-8">
           
-          {/* Sidebar de Filtros (Desktop) */}
           <aside className="w-full md:w-64 flex-shrink-0 hidden md:block">
              <div className="sticky top-24 space-y-6">
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="font-bold text-gray-900 mb-4">Filtrar por</h3>
                     <ProductFilters brands={availableBrands} />
                 </div>
-                {/* Banner lateral opcional */}
                 <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 text-center">
                     <p className="text-sm font-bold text-blue-800">¿Necesitas ayuda?</p>
                     <p className="text-xs text-blue-600 mt-1 mb-3">Nuestros expertos te asesoran gratis.</p>
@@ -195,9 +185,7 @@ export default async function HomePage({ searchParams }: PageProps) {
              </div>
           </aside>
 
-          {/* Grid de Productos */}
           <div className="flex-1">
-            
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
                <div>
                   <h2 className="text-2xl font-bold text-gray-900">
@@ -208,7 +196,6 @@ export default async function HomePage({ searchParams }: PageProps) {
                   </p>
                </div>
                
-               {/* Filtros Móviles */}
                <div className="md:hidden w-full">
                    <ProductFilters brands={availableBrands} />
                </div>
@@ -239,7 +226,6 @@ export default async function HomePage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* --- NUESTRO CLIENTES (Infinite Loop) --- */}
       <ClientsCarousel />
 
     </main>

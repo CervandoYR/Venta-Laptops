@@ -1,8 +1,8 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
-import { Search, X, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, X, Filter, ChevronDown, ChevronUp, Check } from 'lucide-react'
 
 interface ProductFiltersProps {
   brands: string[]
@@ -22,17 +22,41 @@ const CONDITIONS = [
 export default function ProductFilters({ brands }: ProductFiltersProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isOpen, setIsOpen] = useState(false) // Estado para abrir/cerrar en móvil
+  const [isOpen, setIsOpen] = useState(false)
 
+  // --- ESTADOS LOCALES (Para respuesta instantánea) ---
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
+  const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') || '')
+  const [selectedCondition, setSelectedCondition] = useState(searchParams.get('condition') || '')
+  
   const [minPrice, setMinPrice] = useState(searchParams.get('min') || '')
   const [maxPrice, setMaxPrice] = useState(searchParams.get('max') || '')
   const [localSearch, setLocalSearch] = useState(searchParams.get('q') || '')
 
+  // Sincronizar con URL (Por si el usuario usa "Atrás")
+  useEffect(() => {
+    setSelectedCategory(searchParams.get('category') || '')
+    setSelectedBrand(searchParams.get('brand') || '')
+    setSelectedCondition(searchParams.get('condition') || '')
+    setMinPrice(searchParams.get('min') || '')
+    setMaxPrice(searchParams.get('max') || '')
+    setLocalSearch(searchParams.get('q') || '')
+  }, [searchParams])
+
+  // --- FUNCIÓN DE FILTRADO ---
   const applyFilter = (key: string, value: string | null) => {
+    // 1. UI Optimista (Cambio visual inmediato)
+    if (key === 'category') setSelectedCategory(value || '')
+    if (key === 'brand') setSelectedBrand(value || '')
+    if (key === 'condition') setSelectedCondition(value || '')
+
+    // 2. Lógica URL
     const params = new URLSearchParams(searchParams.toString())
     if (value) params.set(key, value)
     else params.delete(key)
-    router.push(`/?${params.toString()}`)
+    
+    // Evita el scroll al top
+    router.push(`/?${params.toString()}`, { scroll: false })
   }
 
   const handleLocalSearch = (e: React.FormEvent) => {
@@ -46,20 +70,23 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     else params.delete('min')
     if (maxPrice) params.set('max', maxPrice)
     else params.delete('max')
-    router.push(`/?${params.toString()}`)
+    router.push(`/?${params.toString()}`, { scroll: false })
   }
 
   const clearFilters = () => {
-    router.push('/')
+    setSelectedCategory('')
+    setSelectedBrand('')
+    setSelectedCondition('')
     setMinPrice('')
     setMaxPrice('')
     setLocalSearch('')
+    router.push('/', { scroll: false })
   }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
       
-      {/* CABECERA (Botón Toggle en Móvil) */}
+      {/* CABECERA */}
       <div 
         className="flex justify-between items-center p-5 border-b cursor-pointer md:cursor-default bg-gray-50 md:bg-white"
         onClick={() => setIsOpen(!isOpen)}
@@ -69,24 +96,22 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
           Filtros
         </h3>
         
-        {/* Controles Derecha */}
         <div className="flex items-center gap-3">
           {(searchParams.toString().length > 0) && (
             <button 
               onClick={(e) => { e.stopPropagation(); clearFilters(); }}
-              className="text-xs text-red-500 hover:underline flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-100"
+              className="text-xs text-red-500 hover:underline flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-100 transition hover:bg-red-100"
             >
               <X className="w-3 h-3" /> Limpiar
             </button>
           )}
-          {/* Flecha solo en móvil */}
           <div className="md:hidden text-gray-500">
             {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </div>
         </div>
       </div>
 
-      {/* CONTENIDO DE FILTROS (Oculto en móvil si !isOpen) */}
+      {/* CONTENIDO */}
       <div className={`p-5 space-y-8 ${isOpen ? 'block' : 'hidden md:block'}`}>
         
         {/* Buscador */}
@@ -104,19 +129,26 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
           </form>
         </div>
 
-        {/* Categorías */}
+        {/* Categorías (SIN RADIO BUTTONS) */}
         <div>
           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Categorías</h4>
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2 cursor-pointer group">
-              <input type="radio" name="category" checked={!searchParams.get('category') || searchParams.get('category') === 'Todos'} onChange={() => applyFilter('category', null)} className="accent-blue-600 w-4 h-4" />
-              <span className="text-sm text-gray-600 group-hover:text-blue-600">Todas</span>
-            </label>
+          <div className="space-y-1">
+            <button 
+                onClick={() => applyFilter('category', null)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+                <span>Todas</span>
+                {!selectedCategory && <Check className="w-4 h-4" />}
+            </button>
             {CATEGORIES.map(cat => (
-              <label key={cat} className="flex items-center space-x-2 cursor-pointer group">
-                <input type="radio" name="category" checked={searchParams.get('category') === cat} onChange={() => applyFilter('category', cat)} className="accent-blue-600 w-4 h-4" />
-                <span className="text-sm text-gray-600 group-hover:text-blue-600">{cat}</span>
-              </label>
+              <button 
+                key={cat}
+                onClick={() => applyFilter('category', cat)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedCategory === cat ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <span>{cat}</span>
+                {selectedCategory === cat && <Check className="w-4 h-4" />}
+              </button>
             ))}
           </div>
         </div>
@@ -125,16 +157,23 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
         {brands.length > 0 && (
           <div>
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Marcas</h4>
-            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="radio" name="brand" checked={!searchParams.get('brand')} onChange={() => applyFilter('brand', null)} className="accent-blue-600 w-4 h-4" />
-                <span className="text-sm text-gray-600">Todas</span>
-              </label>
+            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              <button 
+                  onClick={() => applyFilter('brand', null)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedBrand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                  <span>Todas</span>
+                  {!selectedBrand && <Check className="w-4 h-4" />}
+              </button>
               {brands.map((brand) => (
-                <label key={brand} className="flex items-center space-x-2 cursor-pointer group">
-                  <input type="radio" name="brand" checked={searchParams.get('brand') === brand} onChange={() => applyFilter('brand', brand)} className="accent-blue-600 w-4 h-4" />
-                  <span className="text-sm text-gray-600 group-hover:text-blue-600">{brand}</span>
-                </label>
+                <button 
+                  key={brand}
+                  onClick={() => applyFilter('brand', brand)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedBrand === brand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <span>{brand}</span>
+                  {selectedBrand === brand && <Check className="w-4 h-4" />}
+                </button>
               ))}
             </div>
           </div>
@@ -143,16 +182,23 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
         {/* Condición */}
         <div>
           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Estado</h4>
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input type="radio" name="condition" checked={!searchParams.get('condition')} onChange={() => applyFilter('condition', null)} className="accent-blue-600 w-4 h-4" />
-              <span className="text-sm text-gray-600">Cualquiera</span>
-            </label>
+          <div className="space-y-1">
+            <button 
+                onClick={() => applyFilter('condition', null)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedCondition ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+                <span>Cualquiera</span>
+                {!selectedCondition && <Check className="w-4 h-4" />}
+            </button>
             {CONDITIONS.map((cond) => (
-              <label key={cond.value} className="flex items-center space-x-2 cursor-pointer group">
-                <input type="radio" name="condition" checked={searchParams.get('condition') === cond.value} onChange={() => applyFilter('condition', cond.value)} className="accent-blue-600 w-4 h-4" />
-                <span className="text-sm text-gray-600 group-hover:text-blue-600">{cond.label}</span>
-              </label>
+              <button 
+                key={cond.value}
+                onClick={() => applyFilter('condition', cond.value)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedCondition === cond.value ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <span>{cond.label}</span>
+                {selectedCondition === cond.value && <Check className="w-4 h-4" />}
+              </button>
             ))}
           </div>
         </div>
