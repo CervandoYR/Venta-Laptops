@@ -5,12 +5,12 @@ export default function BenefitsSection() {
     {
       icon: <Truck className="w-5 h-5 md:w-6 md:h-6" />, 
       title: "Envío Gratis Lima",
-      desc: "En pedidos > S/ 500"
+      desc: "En pedidos desde S/ 500"
     },
     {
       icon: <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />,
       title: "Garantía Real",
-      desc: "12 meses asegurados"
+      desc: "Garantía de fábrica"
     },
     {
       icon: <CreditCard className="w-5 h-5 md:w-6 md:h-6" />,
