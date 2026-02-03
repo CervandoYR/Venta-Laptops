@@ -1,26 +1,34 @@
 'use client'
 
+import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 
 export default function FloatingWhatsApp() {
-  // ⚠️ CAMBIA ESTE NÚMERO
-  const phoneNumber = '51926870309' 
-  const message = 'Hola Servitek, estoy viendo su página web y tengo una consulta...'
-
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+  // Configura aquí tu número real
+  const whatsappNumber = "51999999999" 
+  const defaultMessage = "Hola Netsystems, estoy interesado en comprar una laptop."
 
   return (
-    <a
-      href={whatsappUrl}
+    <Link
+      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(defaultMessage)}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 hover:scale-110 transition-all duration-300 group flex items-center gap-2 animate-bounce-subtle"
-      aria-label="Chat en WhatsApp"
+      // ✅ UX FIX MEJORADO: Pasamos de bottom-24 a bottom-32 en móvil.
+      // Esto le da un "respiro" visual perfecto por encima de la barra de comprar.
+      // md:bottom-8 mantiene la posición estándar en computadoras.
+      className="fixed bottom-32 md:bottom-8 right-4 md:right-8 z-50 flex items-center gap-2 bg-[#25D366] text-white px-4 py-3 rounded-full shadow-[0_8px_20px_rgba(37,211,102,0.3)] hover:bg-[#1fb355] transition-all duration-300 hover:scale-105 active:scale-95 group"
     >
-      <MessageCircle className="w-8 h-8 fill-current" />
-      <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap font-bold text-sm">
-        ¡Chatea con nosotros!
-      </span>
-    </a>
+      <div className="relative">
+        <MessageCircle className="w-6 h-6 text-white group-hover:animate-bounce" />
+        {/* Punto verde "En Línea" */}
+        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-200 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-white border-2 border-[#25D366]"></span>
+        </span>
+      </div>
+      
+      <span className="font-bold text-sm hidden md:block">¿Dudas? Escríbenos</span>
+      <span className="font-bold text-sm md:hidden">Ayuda</span>
+    </Link>
   )
 }

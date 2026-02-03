@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { Search, X, Filter, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { Search, X, Filter, ChevronDown, Check } from 'lucide-react'
 
 interface ProductFiltersProps {
   brands: string[]
@@ -24,7 +24,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
   const searchParams = useSearchParams()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Estados visuales instantáneos
+  // 1. ESTADOS LOCALES (Para respuesta instantánea visual)
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
   const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') || '')
   const [selectedCondition, setSelectedCondition] = useState(searchParams.get('condition') || '')
@@ -33,10 +33,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
   const [maxPrice, setMaxPrice] = useState(searchParams.get('max') || '')
   const [localSearch, setLocalSearch] = useState(searchParams.get('q') || '')
 
-  // 🆕 ESTADO PARA BUSCAR MARCAS EN EL FILTRO
-  const [brandFilterTerm, setBrandFilterTerm] = useState('')
-
-  // Sincronizar URL
+  // 2. SINCRONIZACIÓN
   useEffect(() => {
     setSelectedCategory(searchParams.get('category') || '')
     setSelectedBrand(searchParams.get('brand') || '')
@@ -46,6 +43,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     setLocalSearch(searchParams.get('q') || '')
   }, [searchParams])
 
+  // --- LÓGICA DE FILTRADO ---
   const applyFilter = (key: string, value: string | null) => {
     if (key === 'category') setSelectedCategory(value || '')
     if (key === 'brand') setSelectedBrand(value || '')
@@ -55,6 +53,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     if (value) params.set(key, value)
     else params.delete(key)
     
+    // ✅ FIX IMPORTANTE: { scroll: false }
     router.push(`/?${params.toString()}`, { scroll: false })
   }
 
@@ -69,6 +68,7 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     else params.delete('min')
     if (maxPrice) params.set('max', maxPrice)
     else params.delete('max')
+    
     router.push(`/?${params.toString()}`, { scroll: false })
   }
 
@@ -79,166 +79,141 @@ export default function ProductFilters({ brands }: ProductFiltersProps) {
     setMinPrice('')
     setMaxPrice('')
     setLocalSearch('')
+    
     router.push('/', { scroll: false })
   }
 
-  // Filtrar la lista de marcas visible
-  const visibleBrands = brands.filter(b => b.toLowerCase().includes(brandFilterTerm.toLowerCase()))
-
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-      
-      {/* CABECERA */}
-      <div 
-        className="flex justify-between items-center p-5 border-b cursor-pointer md:cursor-default bg-gray-50 md:bg-white"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <Filter className="w-5 h-5 text-blue-600" />
-          Filtros
-        </h3>
-        
-        <div className="flex items-center gap-3">
-          {(searchParams.toString().length > 0) && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); clearFilters(); }}
-              className="text-xs text-red-500 hover:underline flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-100 transition hover:bg-red-100"
-            >
-              <X className="w-3 h-3" /> Limpiar
-            </button>
-          )}
-          <div className="md:hidden text-gray-500">
-            {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </div>
-        </div>
+    <>
+      {/* 📱 BOTÓN DISPARADOR MÓVIL */}
+      <div className="md:hidden mb-4">
+          <button 
+              onClick={() => setIsOpen(true)}
+              className="w-full flex justify-between items-center bg-white border border-gray-200 p-4 rounded-xl shadow-sm text-gray-800 font-bold active:scale-95 transition-transform"
+          >
+              <span className="flex items-center gap-2"><Filter className="w-5 h-5 text-blue-600" /> Filtrar y Buscar</span>
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+          </button>
       </div>
 
-      {/* CONTENIDO */}
-      <div className={`p-5 space-y-8 ${isOpen ? 'block' : 'hidden md:block'}`}>
-        
-        {/* Buscador General */}
-        <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Buscar Productos</h4>
-          <form onSubmit={handleLocalSearch} className="relative">
-            <input 
-              type="text" 
-              placeholder="Ej: RTX 4060..."
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 outline-none transition-all"
-            />
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-          </form>
-        </div>
-
-        {/* Categorías */}
-        <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Categorías</h4>
-          <div className="space-y-1">
-            <button 
-                onClick={() => applyFilter('category', null)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedCategory ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-                <span>Todas</span>
-                {!selectedCategory && <Check className="w-4 h-4" />}
-            </button>
-            {CATEGORIES.map(cat => (
-              <button 
-                key={cat}
-                onClick={() => applyFilter('category', cat)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedCategory === cat ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <span>{cat}</span>
-                {selectedCategory === cat && <Check className="w-4 h-4" />}
-              </button>
-            ))}
+      {/* CONTENEDOR DE FILTROS (Modal en Móvil / Sidebar en PC) */}
+      <div className={`
+          ${isOpen ? 'fixed inset-0 z-[100] bg-white animate-fade-in-up flex flex-col' : 'hidden md:block'} 
+          md:relative md:bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-100 md:z-auto
+      `}>
+          
+          {/* CABECERA (Escritorio y Móvil) */}
+          <div className="flex justify-between items-center p-4 md:p-5 border-b bg-white sticky top-0 z-10">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-lg md:text-base">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                  Filtros
+              </h3>
+              <div className="flex items-center gap-3">
+                  {(searchParams.toString().length > 0) && (
+                      <button onClick={clearFilters} className="text-xs text-red-500 font-bold bg-red-50 px-3 py-1.5 rounded-full hover:bg-red-100 transition">
+                          Limpiar
+                      </button>
+                  )}
+                  {/* Botón Cerrar Modal Móvil */}
+                  <button onClick={() => setIsOpen(false)} className="md:hidden p-2 bg-gray-100 rounded-full text-gray-600">
+                      <X className="w-5 h-5" />
+                  </button>
+              </div>
           </div>
-        </div>
 
-        {/* Marcas (CON BUSCADOR INTEGRADO) */}
-        {brands.length > 0 && (
-          <div>
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Marcas</h4>
+          {/* CUERPO DEL FILTRO (Con scroll en móvil) */}
+          <div className="p-5 space-y-8 flex-1 overflow-y-auto pb-24 md:pb-5">
             
-            {/* Input para buscar marcas dentro del filtro */}
-            {brands.length > 5 && (
-                <div className="mb-2 relative">
-                    <input 
-                        type="text" 
-                        placeholder="Buscar marca..." 
-                        value={brandFilterTerm}
-                        onChange={(e) => setBrandFilterTerm(e.target.value)}
-                        className="w-full p-2 pl-8 text-xs border rounded-md bg-gray-50 outline-none focus:border-blue-300"
-                    />
-                    <Search className="w-3 h-3 absolute left-2.5 top-2.5 text-gray-400" />
+            {/* Buscador */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Buscar</h4>
+              <form onSubmit={handleLocalSearch} className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Ej: RTX 4060..."
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-3 md:py-2 text-sm border rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 outline-none transition-all"
+                />
+                <Search className="w-4 h-4 absolute left-3 top-3.5 md:top-2.5 text-gray-400" />
+              </form>
+            </div>
+
+            {/* Categorías */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Categorías</h4>
+              <div className="space-y-1.5">
+                <button onClick={() => applyFilter('category', null)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${!selectedCategory ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                  <span>Todas</span>{!selectedCategory && <Check className="w-4 h-4" />}
+                </button>
+                {CATEGORIES.map(cat => (
+                  <button key={cat} onClick={() => applyFilter('category', cat)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${selectedCategory === cat ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                    <span>{cat}</span>{selectedCategory === cat && <Check className="w-4 h-4" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Marcas */}
+            {brands.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Marcas</h4>
+                <div className="space-y-1.5 max-h-48 md:max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                  <button onClick={() => applyFilter('brand', null)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${!selectedBrand ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                    <span>Todas</span>{!selectedBrand && <Check className="w-4 h-4" />}
+                  </button>
+                  {brands.map((brand) => (
+                    <button key={brand} onClick={() => applyFilter('brand', brand)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${selectedBrand === brand ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <span>{brand}</span>{selectedBrand === brand && <Check className="w-4 h-4" />}
+                    </button>
+                  ))}
                 </div>
+              </div>
             )}
 
-            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-              <button 
-                  onClick={() => applyFilter('brand', null)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedBrand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                  <span>Todas</span>
-                  {!selectedBrand && <Check className="w-4 h-4" />}
-              </button>
-              
-              {visibleBrands.length > 0 ? (
-                  visibleBrands.map((brand) => (
-                    <button 
-                      key={brand}
-                      onClick={() => applyFilter('brand', brand)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedBrand === brand ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      <span>{brand}</span>
-                      {selectedBrand === brand && <Check className="w-4 h-4" />}
-                    </button>
-                  ))
-              ) : (
-                  <p className="text-xs text-gray-400 text-center py-2">No encontrada</p>
-              )}
+            {/* Condición */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Estado</h4>
+              <div className="space-y-1.5">
+                <button onClick={() => applyFilter('condition', null)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${!selectedCondition ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                  <span>Cualquiera</span>{!selectedCondition && <Check className="w-4 h-4" />}
+                </button>
+                {CONDITIONS.map((cond) => (
+                  <button key={cond.value} onClick={() => applyFilter('condition', cond.value)} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${selectedCondition === cond.value ? 'bg-blue-50 text-blue-700 font-bold shadow-sm ring-1 ring-blue-100' : 'text-gray-600 hover:bg-gray-50'}`}>
+                    <span>{cond.label}</span>{selectedCondition === cond.value && <Check className="w-4 h-4" />}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Condición */}
-        <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Estado</h4>
-          <div className="space-y-1">
-            <button 
-                onClick={() => applyFilter('condition', null)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${!selectedCondition ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-                <span>Cualquiera</span>
-                {!selectedCondition && <Check className="w-4 h-4" />}
-            </button>
-            {CONDITIONS.map((cond) => (
-              <button 
-                key={cond.value}
-                onClick={() => applyFilter('condition', cond.value)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${selectedCondition === cond.value ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <span>{cond.label}</span>
-                {selectedCondition === cond.value && <Check className="w-4 h-4" />}
+            {/* Precio */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Precio (S/)</h4>
+              <div className="flex items-center gap-2 mb-3">
+                <input type="number" placeholder="Mín" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full p-3 md:p-2 text-sm border rounded-lg bg-gray-50 focus:bg-white outline-none" />
+                <span className="text-gray-400">-</span>
+                <input type="number" placeholder="Máx" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full p-3 md:p-2 text-sm border rounded-lg bg-gray-50 focus:bg-white outline-none" />
+              </div>
+              <button onClick={handlePriceApply} className="w-full bg-gray-800 text-white py-3 rounded-lg text-sm font-bold hover:bg-gray-900 transition-colors">
+                Aplicar Precio
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Precio */}
-        <div>
-          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Precio (S/)</h4>
-          <div className="flex items-center gap-2 mb-3">
-            <input type="number" placeholder="Mín" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full p-2 text-sm border rounded-lg bg-gray-50 focus:bg-white outline-none" />
-            <span className="text-gray-400">-</span>
-            <input type="number" placeholder="Máx" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full p-2 text-sm border rounded-lg bg-gray-50 focus:bg-white outline-none" />
           </div>
-          <button onClick={handlePriceApply} className="w-full bg-gray-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors">
-            Filtrar Precio
-          </button>
-        </div>
+
+          {/* 📱 BOTÓN FLOTANTE FINAL (SOLO MÓVIL) */}
+          {isOpen && (
+              <div className="md:hidden sticky bottom-0 p-4 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                  <button 
+                      onClick={() => setIsOpen(false)}
+                      className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold text-base shadow-lg active:scale-95 transition-transform"
+                  >
+                      Ver Resultados
+                  </button>
+              </div>
+          )}
 
       </div>
-    </div>
+    </>
   )
 }
