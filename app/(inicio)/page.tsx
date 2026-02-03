@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { ProductCard } from '@/components/products/ProductCard'
 import Image from 'next/image'
 import ImageCarousel from '@/components/ui/ImageCarousel'
-import SearchBar from '@/components/ui/SearchBar'
 import ProductFilters from '@/components/products/ProductFilters'
 import { Prisma } from '@prisma/client'
 import { FeaturedCarousel } from '@/components/products/FeaturedCarousel'
@@ -96,8 +95,8 @@ export default async function HomePage({ searchParams }: PageProps) {
       
       <FloatingWhatsApp />
 
-      {/* ✅ HERO SECTION (Z-50): Capa alta para que el buscador flote sobre todo */}
-      <section className="bg-gradient-to-br from-gray-900 to-blue-900 text-white py-16 relative z-50">
+      {/* ✅ HERO SECTION (Z-50): Más limpio, sin buscador (ahora está en el Navbar) */}
+      <section className="bg-gradient-to-br from-gray-900 to-blue-900 text-white py-12 md:py-16 relative z-50">
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none mix-blend-overlay overflow-hidden">
             {siteConfig.heroImage && <Image src={siteConfig.heroImage} alt="Background" fill className="object-cover" priority />}
         </div>
@@ -105,19 +104,15 @@ export default async function HomePage({ searchParams }: PageProps) {
         <div className="container mx-auto px-4 relative z-50">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6 text-center md:text-left animate-fade-in-up">
-              <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold uppercase tracking-wider">
+              <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold uppercase tracking-wider shadow-sm">
                 🚀 Envíos a todo el Perú
               </span>
               <h1 className="text-4xl md:text-6xl font-extrabold leading-tight drop-shadow-2xl">
                 {siteConfig.heroTitle}
               </h1>
-              <p className="text-lg text-blue-100 max-w-lg mx-auto md:mx-0 leading-relaxed">
+              <p className="text-lg text-blue-100 max-w-lg mx-auto md:mx-0 leading-relaxed font-medium">
                 {siteConfig.heroText}
               </p>
-              {/* Buscador libre de cortes */}
-              <div className="pt-4 max-w-md mx-auto md:mx-0 relative z-50">
-                <SearchBar />
-              </div>
             </div>
             
             <div className="relative w-full h-64 sm:h-80 md:h-[400px] rounded-2xl overflow-hidden shadow-2xl border border-white/10 group z-10">
@@ -128,16 +123,11 @@ export default async function HomePage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      {/* ✅ BENEFICIOS (Z-30): Por debajo del Hero para que el buscador no se corte */}
-      <div className="relative z-30 container mx-auto px-4">
-         <BenefitsSection />
-      </div>
+      {/* ✅ BENEFICIOS: Espaciado perfecto y sin superposición */}
+      <BenefitsSection />
 
       {/* --- FILTROS RÁPIDOS (ESTÁTICOS) --- */}
-      {/* ✅ UX FIX: Cambiamos 'sticky top-16' por 'relative'. 
-          Ahora la barra se desliza naturalmente hacia arriba al hacer scroll, 
-          liberando el 100% de la pantalla para ver los productos. */}
-      <div className="bg-white border-b relative z-30 shadow-sm mt-12">
+      <div className="bg-white border-b relative z-30 shadow-sm mt-4 md:mt-0">
         <div className="container mx-auto px-4 py-3">
           <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center md:justify-center">
             {['Todos', 'Laptops', 'PC Escritorio', 'Monitores', 'Periféricos', 'Componentes', 'Audio'].map((cat) => {
