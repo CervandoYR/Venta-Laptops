@@ -91,6 +91,8 @@ model Product {
   weight       String?
   sound        String?
 
+  warrantyMonths   Int?    @default(0) // NUEVO: Meses de garantía (0 = Sin garantía)
+
   // 👇 NUEVO CAMPO FLEXIBLE PARA ESPECIFICACIONES EXTRA
   specifications Json?    
 

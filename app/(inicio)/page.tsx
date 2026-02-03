@@ -129,7 +129,7 @@ export default async function HomePage({ searchParams }: PageProps) {
       </section>
 
       {/* ✅ BENEFICIOS (Z-30): Por debajo del Hero para que el buscador no se corte */}
-      <div className="-mt-8 relative z-30 container mx-auto px-4">
+      <div className="relative z-30 container mx-auto px-4">
          <BenefitsSection />
       </div>
 

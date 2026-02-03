@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/utils' 
 import { AddToCartButton } from '@/components/products/AddToCartButton'
 import ProductGallery from '@/components/products/ProductGallery'
-import { CheckCircle2, PackagePlus, Cpu, ShieldCheck, Truck, CreditCard, ChevronRight, AlertTriangle, Flame } from 'lucide-react'
+import { CheckCircle2, PackagePlus, Cpu, ShieldCheck, Truck, CreditCard, ChevronRight, AlertTriangle, Flame, Lock } from 'lucide-react'
 import RelatedProducts from '@/components/products/RelatedProducts'
 
 type Props = {
@@ -30,39 +30,29 @@ export default async function ProductDetailPage({ params }: Props) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } })
   if (!product || !product.active) notFound()
 
-  // Etiquetas de condición
   const conditionLabels: Record<string, { label: string; class: string }> = {
-    NEW: { label: 'Nuevo Sellado', class: 'bg-green-100 text-green-800' },
-    LIKE_NEW: { label: 'Como Nuevo', class: 'bg-blue-100 text-blue-800' },
-    USED: { label: 'Usado', class: 'bg-orange-100 text-orange-800' },
-    REFURBISHED: { label: 'Reacondicionado', class: 'bg-purple-100 text-purple-800' }
+    NEW: { label: 'Nuevo Sellado', class: 'bg-green-100 text-green-700' },
+    LIKE_NEW: { label: 'Open Box', class: 'bg-teal-100 text-teal-700' },
+    USED: { label: 'Usado', class: 'bg-orange-100 text-orange-700' },
+    REFURBISHED: { label: 'Reacondicionado', class: 'bg-purple-100 text-purple-700' }
   };
   // @ts-ignore
   const conditionInfo = conditionLabels[product.condition] || conditionLabels.NEW;
 
-  // Lógica de Ahorro
   const hasDiscount = product.originalPrice && product.originalPrice > product.price
   const savingsAmount = hasDiscount ? (product.originalPrice! - product.price) : 0
   const discountPercentage = hasDiscount 
     ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
     : 0
 
-  // 🧠 LÓGICA FOMO (Urgency Trigger)
   const isLowStock = product.stock > 0 && product.stock <= 3;
 
-  // Lógica Specs
   const fixedSpecs = [
       { label: 'Procesador', value: product.cpu },
       { label: 'Memoria RAM', value: product.ram },
       { label: 'Almacenamiento', value: product.storage },
       { label: 'Pantalla', value: product.display },
       { label: 'Gráficos (Video)', value: product.gpu },
-      { label: 'Conectividad', value: product.connectivity },
-      { label: 'Puertos', value: product.ports },
-      { label: 'Batería', value: product.battery },
-      { label: 'Sonido', value: product.sound },
-      { label: 'Dimensiones', value: product.dimensions },
-      { label: 'Peso', value: product.weight },
   ].filter(s => s.value); 
 
   let dynamicSpecs: { label: string, value: string }[] = [];
@@ -80,7 +70,7 @@ export default async function ProductDetailPage({ params }: Props) {
     <>
       <div className="w-full max-w-[100vw] overflow-x-hidden bg-white">
         
-        {/* ✅ NUEVO: BREADCRUMBS (Migas de Pan) */}
+        {/* MIGA DE PAN */}
         <div className="bg-gray-50 border-b border-gray-100">
             <div className="container mx-auto px-4 py-3">
                 <nav className="flex items-center text-xs font-medium text-gray-500 overflow-x-auto no-scrollbar whitespace-nowrap">
@@ -96,59 +86,43 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="container mx-auto px-4 py-8 md:py-10 pb-28 md:pb-10">
           <div className="grid md:grid-cols-2 gap-8 md:gap-12">
             
-            {/* --- COLUMNA IZQUIERDA: GALERÍA + BENEFICIOS --- */}
+            {/* --- COLUMNA IZQUIERDA: GALERÍA --- */}
             <div className="flex flex-col gap-6 md:gap-8 min-w-0">
               <div className="md:sticky md:top-24 z-10 w-full">
-                  <ProductGallery 
-                      images={product.images.length > 0 ? product.images : (product.image ? [product.image] : [])} 
-                      productName={product.name} 
-                  />
+                  <ProductGallery images={product.images.length > 0 ? product.images : (product.image ? [product.image] : [])} productName={product.name} />
                   
-                  {/* CAJA DE CONFIANZA */}
+                  {/* CAJA DE CONFIANZA IZQUIERDA (Info General) */}
                   <div className="mt-8 bg-blue-50/50 rounded-2xl p-5 md:p-6 border border-blue-100 hidden md:block">
-                      <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <ShieldCheck className="w-5 h-5 text-blue-600" /> 
-                          Compra con Confianza
-                      </h4>
+                      <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-blue-600" /> Beneficios Exclusivos</h4>
                       <div className="space-y-4">
-                          <div className="flex items-start gap-3">
-                              <div className="p-2 bg-white rounded-full shadow-sm text-blue-600"><Truck className="w-4 h-4" /></div>
-                              <div>
-                                  <p className="text-sm font-bold text-gray-800">Envío Gratis en Lima</p>
-                                  <p className="text-xs text-gray-500">Recibe tu pedido en 24-48 horas hábiles.</p>
-                              </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                              <div className="p-2 bg-white rounded-full shadow-sm text-blue-600"><ShieldCheck className="w-4 h-4" /></div>
-                              <div>
-                                  <p className="text-sm font-bold text-gray-800">Garantía Asegurada</p>
-                                  <p className="text-xs text-gray-500">Todos nuestros equipos cuentan con garantía real.</p>
-                              </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                              <div className="p-2 bg-white rounded-full shadow-sm text-blue-600"><CreditCard className="w-4 h-4" /></div>
-                              <div>
-                                  <p className="text-sm font-bold text-gray-800">Pago Seguro</p>
-                                  <p className="text-xs text-gray-500">Aceptamos transferencias, Yape y tarjetas.</p>
-                              </div>
-                          </div>
+                          <div className="flex items-start gap-3"><div className="p-2 bg-white rounded-full shadow-sm text-blue-600"><Truck className="w-4 h-4" /></div><div><p className="text-sm font-bold text-gray-800">Envío Gratis en Lima</p><p className="text-xs text-gray-500">Recibe tu pedido en 24-48 horas hábiles.</p></div></div>
+                          <div className="flex items-start gap-3"><div className="p-2 bg-white rounded-full shadow-sm text-blue-600"><CreditCard className="w-4 h-4" /></div><div><p className="text-sm font-bold text-gray-800">Pago Seguro</p><p className="text-xs text-gray-500">Aceptamos transferencias, Yape y tarjetas.</p></div></div>
                       </div>
                   </div>
               </div>
             </div>
 
-            {/* --- COLUMNA DERECHA: INFO DEL PRODUCTO --- */}
+            {/* --- COLUMNA DERECHA: INFO Y COMPRA --- */}
             <div className="flex flex-col w-full min-w-0">
               
-              <div className="flex flex-wrap items-center gap-2 mb-4 w-full">
-                <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider">{product.category}</span>
-                <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${conditionInfo.class}`}>{conditionInfo.label}</span>
+              {/* ETIQUETAS DE CABECERA */}
+              <div className="flex flex-wrap items-center gap-1.5 mb-4 w-full">
+                <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wide">
+                  {product.category}
+                </span>
+
+                <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide ${conditionInfo.class}`}>
+                  {conditionInfo.label}
+                </span>
                 
-                {hasDiscount && (
-                    <span className="text-xs font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
-                        ¡Oferta -{discountPercentage}%!
-                    </span>
-                )}
+                {product.warrantyMonths && product.warrantyMonths > 0 ? (
+                  <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full flex items-center gap-1 shadow-sm uppercase tracking-wide">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    GARANTÍA DE {product.warrantyMonths} MESES
+                  </span>
+                ) : null}
+
+                {hasDiscount && <span className="text-xs font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full animate-pulse uppercase tracking-wide">¡Oferta -{discountPercentage}%!</span>}
               </div>
 
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight break-words">{product.name}</h1>
@@ -160,74 +134,76 @@ export default async function ProductDetailPage({ params }: Props) {
                     <p className="text-[10px] md:text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">Precio Online</p>
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-blue-700 leading-none">{formatPrice(product.price)}</span>
-                        {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="text-xs sm:text-sm text-gray-400 line-through decoration-red-400 decoration-2">
-                                {formatPrice(product.originalPrice)}
-                            </span>
-                        )}
+                        {product.originalPrice && product.originalPrice > product.price && <span className="text-xs sm:text-sm text-gray-400 line-through decoration-red-400 decoration-2">{formatPrice(product.originalPrice)}</span>}
                     </div>
-                    {hasDiscount && (
-                        <div className="mt-1.5">
-                            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold border border-red-200 inline-flex items-center gap-1 whitespace-nowrap">
-                                🔥 ¡Ahorras {formatPrice(savingsAmount)}!
-                            </span>
-                        </div>
-                    )}
+                    {hasDiscount && <div className="mt-1.5"><span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold border border-red-200 inline-flex items-center gap-1 whitespace-nowrap">🔥 ¡Ahorras {formatPrice(savingsAmount)}!</span></div>}
                 </div>
                 
-                {/* ✅ NUEVO: LÓGICA DE ESCASEZ (FOMO) */}
                 {product.stock > 0 ? (
                     <div className="flex flex-col items-end flex-shrink-0">
                         {isLowStock ? (
-                            // ALERTA DE STOCK BAJO (Urgency)
-                            <>
-                                <span className="inline-flex items-center gap-1 bg-red-600 text-white px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap animate-pulse shadow-sm shadow-red-200">
-                                    <Flame className="w-3 h-3" />
-                                    ¡Últimas unidades!
-                                </span>
-                                <p className="text-[10px] md:text-xs text-red-600 font-extrabold whitespace-nowrap">
-                                    Solo quedan {product.stock}
-                                </p>
-                            </>
+                            <><span className="inline-flex items-center gap-1 bg-red-600 text-white px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap animate-pulse shadow-sm shadow-red-200"><Flame className="w-3 h-3" /> ¡Últimas unidades!</span><p className="text-[10px] md:text-xs text-red-600 font-extrabold whitespace-nowrap">Solo quedan {product.stock}</p></>
                         ) : (
-                            // STOCK NORMAL
-                            <>
-                                <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                                    En Stock
-                                </span>
-                                <p className="text-[10px] md:text-xs text-gray-400 font-medium whitespace-nowrap">
-                                    {product.stock} disp.
-                                </p>
-                            </>
+                            <><span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>En Stock</span><p className="text-[10px] md:text-xs text-gray-400 font-medium whitespace-nowrap">{product.stock} disp.</p></>
                         )}
                     </div>
-                ) : (
-                    <span className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap">Agotado</span>
-                )}
+                ) : <span className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap">Agotado</span>}
               </div>
 
               {product.conditionDetails && (
                   <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3 items-start w-full">
-                      <span className="text-xl flex-shrink-0 mt-0.5">⚠️</span>
-                      <div className="flex-1 min-w-0">
-                          <h3 className="text-xs font-bold text-amber-900 uppercase">Nota sobre el estado</h3>
-                          <p className="text-sm text-amber-800 mt-1 leading-snug break-words">{product.conditionDetails}</p>
-                      </div>
+                      <span className="text-xl flex-shrink-0 mt-0.5">⚠️</span><div className="flex-1 min-w-0"><h3 className="text-xs font-bold text-amber-900 uppercase">Nota sobre el estado</h3><p className="text-sm text-amber-800 mt-1 leading-snug break-words">{product.conditionDetails}</p></div>
                   </div>
               )}
 
-              {/* BOTÓN ESCRITORIO */}
-              <div className="mb-10 hidden md:block w-full">
-                {product.stock > 0 && <AddToCartButton product={product} />}
+              {/* ✅ UX IX MASTERCLASS: SECCIÓN DE CONFIANZA REDISEÑADA (Verde Esmeralda) */}
+              <div className="w-full mb-8">
+                
+                {/* 1. Banner de Garantía (Color Verde Seguro - Ahora visible en Móvil y PC) */}
+                {product.warrantyMonths && product.warrantyMonths > 0 ? (
+                  <div className="mb-4 bg-emerald-50 border border-emerald-100 rounded-xl p-3 md:p-4 flex items-center justify-between shadow-sm transition-all hover:bg-emerald-100/50">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="bg-emerald-100 p-2 rounded-lg flex-shrink-0">
+                        <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-extrabold text-emerald-900 text-sm md:text-base leading-tight truncate">Garantía Real de {product.warrantyMonths} Meses</h4>
+                        <p className="text-xs md:text-sm text-emerald-700 font-medium truncate">Compra protegida contra fallas de fábrica.</p>
+                      </div>
+                    </div>
+                    {/* Check solo visible en pantallas un poco más grandes para ahorrar espacio en móvil */}
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 hidden sm:block flex-shrink-0" />
+                  </div>
+                ) : null}
+
+                {/* 2. Botón de Comprar (Solo Desktop, el móvil tiene su barra flotante) */}
+                <div className="hidden md:block">
+                  {product.stock > 0 && <AddToCartButton product={product} />}
+                </div>
+
+                {/* 3. Micro-texto de Seguridad Estilo Amazon (Responsive adaptado) */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3 md:gap-6 border-b border-gray-100 pb-8 px-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                    <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Pago Seguro</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Respaldo Real</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                    <Truck className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Envíos Seguros</span>
+                  </div>
+                </div>
+
               </div>
 
-              {/* TABLA DE ESPECIFICACIONES */}
+              {/* TABLA INTELIGENTE */}
               {fixedSpecs.length > 0 && (
                 <div className="mb-8 w-full max-w-full">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-                        <Cpu className="w-5 h-5 text-blue-600" />
-                        Especificaciones
+                        <Cpu className="w-5 h-5 text-blue-600" /> Componentes Principales
                     </h3>
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm w-full overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-50 table-fixed sm:table-auto">
@@ -244,7 +220,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* DESCRIPCIÓN HTML */}
+              {/* DESCRIPCIÓN */}
               {product.description && (
                 <div className="mb-8 w-full max-w-full">
                     <h3 className="text-lg font-bold text-gray-900 mb-3">Descripción</h3>
@@ -254,12 +230,11 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* SPECS EXTRA */}
+              {/* SPECS ADICIONALES */}
               {filteredDynamicSpecs.length > 0 && (
                   <div className="mt-4 pt-6 border-t border-gray-100 w-full">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <PackagePlus className="w-5 h-5 text-gray-400" />
-                        Más Detalles
+                        <PackagePlus className="w-5 h-5 text-gray-400" /> Más Detalles
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 w-full">
                         {filteredDynamicSpecs.map((item, idx) => (
@@ -280,18 +255,14 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* 📱 BARRA FLOTANTE MÓVIL (STICKY BOTTOM) */}
+      {/* BARRA FLOTANTE MÓVIL */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)] z-40 flex items-center justify-between">
           <div className="flex flex-col justify-center min-w-0 mr-2">
               <p className="text-[10px] sm:text-xs text-gray-500 font-medium leading-none mb-1">Precio total</p>
               <span className="text-xl sm:text-2xl font-extrabold text-blue-700 leading-none truncate">{formatPrice(product.price)}</span>
           </div>
           <div className="w-[160px] sm:w-[200px] flex-shrink-0">
-              {product.stock > 0 ? (
-                  <AddToCartButton product={product} /> 
-              ) : (
-                  <span className="block w-full text-center bg-gray-200 text-gray-500 py-3 rounded-xl font-bold text-sm">Agotado</span>
-              )}
+              {product.stock > 0 ? <AddToCartButton product={product} /> : <span className="block w-full text-center bg-gray-200 text-gray-500 py-3 rounded-xl font-bold text-sm">Agotado</span>}
           </div>
       </div>
     </>

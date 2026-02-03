@@ -1,102 +1,99 @@
-// Palabras clave principales (Secciones y Atributos)
-const KEYWORDS = [
-  'MARCA', 'MODELO', 'PART NUMBER', 'COLOR', 'PANTALLA', 'RESOLUCION', 
-  'CPU', 'PROCESADOR', 'OBSERVACIONES', 'CHIPSET', 'MEMORIA', 'RAM', 
-  'CAPACIDAD', 'BUS', 'TIPO', 'ALMACENAMIENTO', 'DISCO', 'INTERFAZ', 
-  'VIDEO', 'GRAFICOS', 'CONECTIVIDAD', 'WIRELESS', 'BLUETOOTH', 
-  'SONIDO', 'PUERTOS', 'BATERIA', 'DIMENSIONES', 'PESO', 
-  'SISTEMA OPERATIVO', 'GARANTIA', 'COMENTARIOS', 'CAMARA', 'TECLADO', 'ADAPTADOR'
-];
+// lib/parsers.ts
 
-export const parseDeltronText = (text: string) => {
-  // 1. CORRECCIÓN DEL ERROR DE BUILD:
-  // Devolvemos un objeto con TODOS los campos vacíos si no hay texto.
-  // Esto evita que TypeScript grite "Property 'ports' does not exist".
-  if (!text) return { 
-    specs: {}, 
-    description: '',
-    brand: '', 
-    model: '', 
-    cpu: '', 
-    ram: '', 
-    storage: '', 
-    display: '', 
-    gpu: '', 
-    ports: '', 
-    battery: '', 
-    weight: '' 
+export interface ParsedProduct {
+  name: string;
+  brand: string;
+  model: string;
+  category: string; // Detección automática de categoría
+  cpu?: string;
+  ram?: string;
+  storage?: string;
+  display?: string;
+  gpu?: string;
+  ports?: string;
+  battery?: string;
+  warrantyMonths?: number; // Detección de Garantía
+  specs: Record<string, string>;
+  description: string;
+}
+
+export function parseDeltronText(text: string): ParsedProduct {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  
+  const result: ParsedProduct = {
+    name: '',
+    brand: '',
+    model: '',
+    category: 'Laptops', // Default
+    warrantyMonths: 0,
+    specs: {},
+    description: ''
   };
 
-  // 2. Limpieza inicial
-  let cleanText = text
-    .replace(/\t/g, ' ') 
-    .replace(/\n/g, '  ') 
-    .replace(/\s+/g, ' '); 
+  if (lines.length > 0) result.name = lines[0];
 
-  const specs: Record<string, string> = {};
-  
-  // 3. Encontrar posiciones de claves
-  const matches: { key: string, index: number }[] = [];
-  
-  KEYWORDS.forEach(key => {
-    let idx = cleanText.toUpperCase().indexOf(key);
-    while (idx !== -1) {
-      matches.push({ key, index: idx });
-      idx = cleanText.toUpperCase().indexOf(key, idx + 1);
-    }
-  });
-
-  matches.sort((a, b) => a.index - b.index);
-
-  // 4. Extraer valores
-  matches.forEach((match, i) => {
-    const nextMatch = matches[i + 1];
-    const start = match.index + match.key.length;
-    const end = nextMatch ? nextMatch.index : cleanText.length;
-    
-    let value = cleanText.substring(start, end).trim();
-    value = value.replace(/^[:\-\.\s]+|[:\-\.\s]+$/g, '').trim();
-
-    if (value && value.length > 1) { 
-      const prettyKey = match.key.charAt(0) + match.key.slice(1).toLowerCase();
-      if (specs[prettyKey]) {
-         specs[prettyKey] += ` | ${value}`;
-      } else {
-         specs[prettyKey] = value;
-      }
-    }
-  });
-
-  // Helpers
-  const find = (keys: string[]) => {
-      for (const k of keys) {
-          const foundKey = Object.keys(specs).find(sk => sk.toUpperCase().includes(k));
-          if(foundKey) return specs[foundKey];
-      }
-      return '';
+  // 1. DETECCIÓN INTELIGENTE DE CATEGORÍA
+  const upperText = text.toUpperCase();
+  if (upperText.includes('GABINETE') || upperText.includes('CASE ') || upperText.includes('FUENTE DE PODER') || upperText.includes('TARJETA DE VIDEO') || upperText.includes('RYZEN') || upperText.includes('CORE I') || upperText.includes('MAINBOARD')) {
+    result.category = 'Componentes';
+  } else if (upperText.includes('MOUSE') || upperText.includes('TECLADO') || upperText.includes('WEBCAM')) {
+    result.category = 'Periféricos';
+  } else if (upperText.includes('MONITOR')) {
+    result.category = 'Monitores';
+  } else if (upperText.includes('AUDIFONO') || upperText.includes('PARLANTE') || upperText.includes('HEADSET')) {
+    result.category = 'Audio';
+  } else if (upperText.includes('ALL IN ONE') || upperText.includes('DESKTOP')) {
+    result.category = 'PC Escritorio';
   }
 
-  // Generar descripción HTML
-  let descriptionHTML = '<ul class="space-y-1">';
-  Object.entries(specs).forEach(([k, v]) => {
-      if (!['FORMATO', 'COMENTARIOS'].includes(k.toUpperCase())) {
-          descriptionHTML += `<li><strong>${k}:</strong> ${v}</li>`;
-      }
-  });
-  descriptionHTML += '</ul>';
+  const descriptionLines: string[] = [];
+  let foundDescription = false;
 
-  return {
-    specs,
-    description: descriptionHTML,
-    brand: find(['MARCA']),
-    model: find(['MODELO']),
-    cpu: find(['PROCESADOR', 'CPU']),
-    ram: find(['MEMORIA', 'RAM']),
-    storage: find(['ALMACENAMIENTO', 'DISCO']),
-    display: find(['PANTALLA']),
-    gpu: find(['VIDEO', 'GRAFICOS']),
-    ports: find(['PUERTOS']),
-    battery: find(['BATERIA']),
-    weight: find(['PESO'])
-  };
+  for (const line of lines) {
+    const l = line.toLowerCase();
+
+    // Detección de Marca y Modelo (Básico)
+    if (l.startsWith('marca')) result.brand = line.split(':')[1]?.trim() || '';
+    if (l.startsWith('modelo') || l.startsWith('nro. de parte')) result.model = line.split(':')[1]?.trim() || '';
+
+    // GARANTÍA: Busca "12 meses", "1 año", "36 meses", etc.
+    if (l.includes('garantia') || l.includes('garantía')) {
+      const match = line.match(/(\d+)\s*(meses|mes|años|año)/i);
+      if (match) {
+        let months = parseInt(match[1]);
+        if (match[2].toLowerCase().includes('año')) months *= 12;
+        result.warrantyMonths = months;
+      }
+    }
+
+    // Extracción de Specs Estándar (si aplican)
+    if (l.includes('procesador') || l.includes('cpu')) result.cpu = line.split(':')[1]?.trim();
+    if (l.includes('memoria') || l.includes('ram')) result.ram = line.split(':')[1]?.trim();
+    if (l.includes('almacenamiento') || l.includes('disco') || l.includes('ssd')) result.storage = line.split(':')[1]?.trim();
+    if (l.includes('pantalla') || l.includes('display')) result.display = line.split(':')[1]?.trim();
+    if (l.includes('video') || l.includes('grafico') || l.includes('gpu')) result.gpu = line.split(':')[1]?.trim();
+
+    // Extracción Universal (Key: Value) para la tabla dinámica (Mouse, Case, etc.)
+    if (line.includes(':') && !l.includes('http')) {
+      const [key, val] = line.split(/:(.+)/);
+      if (key && val && key.length < 30) {
+        result.specs[key.trim()] = val.trim();
+      }
+    }
+
+    // Descripción HTML
+    if (l.includes('caracteristicas') || l.includes('especificaciones')) foundDescription = true;
+    if (foundDescription && !line.includes(':')) {
+      descriptionLines.push(`<li>${line}</li>`);
+    }
+  }
+
+  if (descriptionLines.length > 0) {
+    result.description = `<ul>${descriptionLines.join('')}</ul>`;
+  }
+
+  // Fallback para nombres
+  if (!result.brand && result.name) result.brand = result.name.split(' ')[0];
+
+  return result;
 }
