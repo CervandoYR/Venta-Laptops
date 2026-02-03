@@ -3,22 +3,23 @@ import { ShieldCheck, Truck, CreditCard, Headphones } from 'lucide-react'
 export default function BenefitsSection() {
   const benefits = [
     {
-      icon: <Truck className="w-6 h-6 text-blue-600" />,
+      // ✅ UX FIX: Quitamos el 'text-blue-600' de aquí para que el color sea dinámico
+      icon: <Truck className="w-6 h-6" />, 
       title: "Envío Gratis Lima",
       desc: "En pedidos > S/ 500"
     },
     {
-      icon: <ShieldCheck className="w-6 h-6 text-blue-600" />,
+      icon: <ShieldCheck className="w-6 h-6" />,
       title: "Garantía Real",
       desc: "12 meses asegurados"
     },
     {
-      icon: <CreditCard className="w-6 h-6 text-blue-600" />,
+      icon: <CreditCard className="w-6 h-6" />,
       title: "Pago Seguro",
       desc: "Yape, Plin o Efectivo"
     },
     {
-      icon: <Headphones className="w-6 h-6 text-blue-600" />,
+      icon: <Headphones className="w-6 h-6" />,
       title: "Soporte Técnico",
       desc: "Asesoría post-venta"
     }
@@ -40,16 +41,15 @@ export default function BenefitsSection() {
                 key={idx} 
                 className="flex flex-col items-center text-center md:flex-row md:text-left gap-4 px-2 group cursor-default"
               >
-                {/* Icono con círculo y animación */}
-                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:scale-110 transition-all duration-300">
-                   <div className="group-hover:text-white transition-colors duration-300">
-                     {item.icon}
-                   </div>
+                {/* ✅ UX FIX: El contenedor ahora controla el color. 
+                    Normal = text-blue-600. En Hover = text-white. */}
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:scale-110 transition-all duration-300 shadow-sm">
+                   {item.icon}
                 </div>
                 
                 {/* Textos */}
                 <div>
-                  <h3 className="font-bold text-gray-900 text-sm md:text-base leading-tight mb-1">
+                  <h3 className="font-bold text-gray-900 text-sm md:text-base leading-tight mb-1 group-hover:text-blue-700 transition-colors">
                     {item.title}
                   </h3>
                   <p className="text-xs md:text-sm text-gray-500 font-medium">

@@ -1,10 +1,11 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/utils' 
 import { AddToCartButton } from '@/components/products/AddToCartButton'
 import ProductGallery from '@/components/products/ProductGallery'
-import { CheckCircle2, PackagePlus, Cpu, ShieldCheck, Truck, CreditCard } from 'lucide-react'
+import { CheckCircle2, PackagePlus, Cpu, ShieldCheck, Truck, CreditCard, ChevronRight, AlertTriangle, Flame } from 'lucide-react'
 import RelatedProducts from '@/components/products/RelatedProducts'
 
 type Props = {
@@ -29,6 +30,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } })
   if (!product || !product.active) notFound()
 
+  // Etiquetas de condición
   const conditionLabels: Record<string, { label: string; class: string }> = {
     NEW: { label: 'Nuevo Sellado', class: 'bg-green-100 text-green-800' },
     LIKE_NEW: { label: 'Como Nuevo', class: 'bg-blue-100 text-blue-800' },
@@ -38,12 +40,17 @@ export default async function ProductDetailPage({ params }: Props) {
   // @ts-ignore
   const conditionInfo = conditionLabels[product.condition] || conditionLabels.NEW;
 
+  // Lógica de Ahorro
   const hasDiscount = product.originalPrice && product.originalPrice > product.price
   const savingsAmount = hasDiscount ? (product.originalPrice! - product.price) : 0
   const discountPercentage = hasDiscount 
     ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
     : 0
 
+  // 🧠 LÓGICA FOMO (Urgency Trigger)
+  const isLowStock = product.stock > 0 && product.stock <= 3;
+
+  // Lógica Specs
   const fixedSpecs = [
       { label: 'Procesador', value: product.cpu },
       { label: 'Memoria RAM', value: product.ram },
@@ -71,18 +78,26 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* ✅ ESCUDO RESPONSIVE: 'w-full max-w-[100vw] overflow-x-hidden' 
-          Esto bloquea cualquier scroll horizontal no deseado a nivel de página */}
       <div className="w-full max-w-[100vw] overflow-x-hidden bg-white">
         
-        {/* Contenedor principal con espaciado ajustado para móviles (px-4) */}
+        {/* ✅ NUEVO: BREADCRUMBS (Migas de Pan) */}
+        <div className="bg-gray-50 border-b border-gray-100">
+            <div className="container mx-auto px-4 py-3">
+                <nav className="flex items-center text-xs font-medium text-gray-500 overflow-x-auto no-scrollbar whitespace-nowrap">
+                    <Link href="/" className="hover:text-blue-600 transition-colors">Inicio</Link>
+                    <ChevronRight className="w-3 h-3 mx-2 flex-shrink-0" />
+                    <Link href={`/?category=${product.category}`} className="hover:text-blue-600 transition-colors">{product.category}</Link>
+                    <ChevronRight className="w-3 h-3 mx-2 flex-shrink-0" />
+                    <span className="text-gray-800 font-bold truncate max-w-[200px] md:max-w-none">{product.name}</span>
+                </nav>
+            </div>
+        </div>
+
         <div className="container mx-auto px-4 py-8 md:py-10 pb-28 md:pb-10">
-          
-          {/* ✅ GAP REDUCIDO: de gap-12 a gap-8 en móvil para que no se sienta tan separado */}
           <div className="grid md:grid-cols-2 gap-8 md:gap-12">
             
             {/* --- COLUMNA IZQUIERDA: GALERÍA + BENEFICIOS --- */}
-            <div className="flex flex-col gap-6 md:gap-8 min-w-0"> {/* min-w-0 evita desbordes en grid */}
+            <div className="flex flex-col gap-6 md:gap-8 min-w-0">
               <div className="md:sticky md:top-24 z-10 w-full">
                   <ProductGallery 
                       images={product.images.length > 0 ? product.images : (product.image ? [product.image] : [])} 
@@ -123,7 +138,7 @@ export default async function ProductDetailPage({ params }: Props) {
             </div>
 
             {/* --- COLUMNA DERECHA: INFO DEL PRODUCTO --- */}
-            <div className="flex flex-col w-full min-w-0"> {/* min-w-0 crucial para prevenir overflow */}
+            <div className="flex flex-col w-full min-w-0">
               
               <div className="flex flex-wrap items-center gap-2 mb-4 w-full">
                 <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider">{product.category}</span>
@@ -139,7 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 mb-2 leading-tight break-words">{product.name}</h1>
               <p className="text-base md:text-lg text-gray-500 mb-6 font-medium break-words">{product.brand} {product.model}</p>
 
-              {/* ✅ CAJA DE PRECIO Y STOCK OPTIMIZADA */}
+              {/* CAJA DE PRECIO Y STOCK */}
               <div className="mb-6 w-full p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between gap-2 overflow-hidden">
                 <div className="flex-1 min-w-0">
                     <p className="text-[10px] md:text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">Precio Online</p>
@@ -160,15 +175,32 @@ export default async function ProductDetailPage({ params }: Props) {
                     )}
                 </div>
                 
+                {/* ✅ NUEVO: LÓGICA DE ESCASEZ (FOMO) */}
                 {product.stock > 0 ? (
                     <div className="flex flex-col items-end flex-shrink-0">
-                        <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap">
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                            En Stock
-                        </span>
-                        <p className="text-[10px] md:text-xs text-gray-400 font-medium whitespace-nowrap">
-                          {product.stock} disp.
-                        </p>
+                        {isLowStock ? (
+                            // ALERTA DE STOCK BAJO (Urgency)
+                            <>
+                                <span className="inline-flex items-center gap-1 bg-red-600 text-white px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap animate-pulse shadow-sm shadow-red-200">
+                                    <Flame className="w-3 h-3" />
+                                    ¡Últimas unidades!
+                                </span>
+                                <p className="text-[10px] md:text-xs text-red-600 font-extrabold whitespace-nowrap">
+                                    Solo quedan {product.stock}
+                                </p>
+                            </>
+                        ) : (
+                            // STOCK NORMAL
+                            <>
+                                <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold mb-1 whitespace-nowrap">
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                    En Stock
+                                </span>
+                                <p className="text-[10px] md:text-xs text-gray-400 font-medium whitespace-nowrap">
+                                    {product.stock} disp.
+                                </p>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <span className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap">Agotado</span>
@@ -190,14 +222,13 @@ export default async function ProductDetailPage({ params }: Props) {
                 {product.stock > 0 && <AddToCartButton product={product} />}
               </div>
 
-              {/* ✅ TABLA DE ESPECIFICACIONES CON PROTECCIÓN CONTRA OVERFLOW */}
+              {/* TABLA DE ESPECIFICACIONES */}
               {fixedSpecs.length > 0 && (
                 <div className="mb-8 w-full max-w-full">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
                         <Cpu className="w-5 h-5 text-blue-600" />
                         Especificaciones
                     </h3>
-                    {/* El overflow-x-auto permite deslizar la tabla si es muy ancha, sin mover la página */}
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm w-full overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-50 table-fixed sm:table-auto">
                             <tbody className="divide-y divide-gray-50">
@@ -213,11 +244,10 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* ✅ DESCRIPCIÓN HTML CON PROTECCIÓN CONTRA OVERFLOW */}
+              {/* DESCRIPCIÓN HTML */}
               {product.description && (
                 <div className="mb-8 w-full max-w-full">
                     <h3 className="text-lg font-bold text-gray-900 mb-3">Descripción</h3>
-                    {/* El overflow-x-auto y break-words protegen de imágenes o tablas HTML mal formateadas */}
                     <div className="prose prose-blue prose-sm text-gray-600 max-w-full bg-gray-50/50 p-4 md:p-5 rounded-xl border border-gray-100 overflow-x-auto break-words [&>img]:max-w-full [&>table]:w-full">
                         <div dangerouslySetInnerHTML={{ __html: product.description }} />
                     </div>
