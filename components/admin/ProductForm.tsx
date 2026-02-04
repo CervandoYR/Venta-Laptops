@@ -6,11 +6,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import ImageUpload from '@/components/admin/ImageUpload'
-import { Loader2, Save, Sparkles, X, ClipboardPaste, Plus, Trash2, LayoutGrid, DollarSign, Box, ChevronDown, Check, AlertCircle, Tag, ShieldCheck, AlignLeft, Info } from 'lucide-react'
+import { Loader2, Save, Sparkles, X, ClipboardPaste, LayoutGrid, ChevronDown, Check, AlertCircle, ShieldCheck, Tag, Trash2, AlignLeft, Info } from 'lucide-react'
 import { parseDeltronText } from '@/lib/parsers'
 import { useToast } from '@/contexts/ToastContext'
 
-// --- LISTA MAESTRA DE MARCAS ---
+// --- CONSTANTES ---
 const POPULAR_BRANDS = [
   'HP', 'Lenovo', 'Dell', 'Asus', 'Acer', 'MSI', 'Apple', 
   'Samsung', 'LG', 'Logitech', 'Razer', 'Corsair', 'HyperX', 
@@ -63,7 +63,7 @@ const productSchema = z.object({
   specifications: z.record(z.string()).optional(), 
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
-  warrantyMonths: z.number().optional().default(0) // ✅ Asegurado en schema
+  warrantyMonths: z.number().optional().default(0)
 })
 
 type ProductFormData = z.infer<typeof productSchema>
@@ -84,7 +84,7 @@ export function ProductForm({ product }: ProductFormProps) {
   const [showBrandDropdown, setShowBrandDropdown] = useState(false)
   const brandWrapperRef = useRef<HTMLDivElement>(null)
   
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false) // ✅ Nuevo estado
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const categoryWrapperRef = useRef<HTMLDivElement>(null)
 
   const [showWarrantyDropdown, setShowWarrantyDropdown] = useState(false)
@@ -97,7 +97,6 @@ export function ProductForm({ product }: ProductFormProps) {
           ...product,
           price: Number(product.price),
           originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
-          // ✅ TU LÓGICA ORIGINAL QUE EVITA ERRORES NULL
           cpu: product.cpu || '', 
           ram: product.ram || '', 
           storage: product.storage || '', 
@@ -114,7 +113,7 @@ export function ProductForm({ product }: ProductFormProps) {
           conditionDetails: product.conditionDetails || '',
           brand: product.brand || '',
           model: product.model || '',
-          description: product.description || '', // 🔥 CRÍTICO: Esto evita el bloqueo
+          description: product.description || '',
           images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
           specifications: product.specifications || {},
           warrantyMonths: product.warrantyMonths || 0
@@ -128,8 +127,8 @@ export function ProductForm({ product }: ProductFormProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (brandWrapperRef.current && !brandWrapperRef.current.contains(event.target as Node)) setShowBrandDropdown(false)
-      if (categoryWrapperRef.current && !categoryWrapperRef.current.contains(event.target as Node)) setShowCategoryDropdown(false) // ✅
       if (warrantyWrapperRef.current && !warrantyWrapperRef.current.contains(event.target as Node)) setShowWarrantyDropdown(false)
+      if (categoryWrapperRef.current && !categoryWrapperRef.current.contains(event.target as Node)) setShowCategoryDropdown(false)
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
@@ -157,7 +156,7 @@ export function ProductForm({ product }: ProductFormProps) {
     }
   }, [nameValue, product, form])
 
-  // Importador IA (Mejorado)
+  // Importador IA
   const handleSmartImport = () => {
     if (!pasteContent) return
     const parsed = parseDeltronText(pasteContent)
@@ -168,7 +167,7 @@ export function ProductForm({ product }: ProductFormProps) {
     if (parsed.category) form.setValue('category', parsed.category)
     if (parsed.warrantyMonths) form.setValue('warrantyMonths', parsed.warrantyMonths)
     
-    // Specs básicos
+    // Specs principales
     const fields: any[] = ['cpu', 'ram', 'storage', 'display', 'gpu', 'battery', 'ports']
     fields.forEach(f => { if (parsed[f as keyof typeof parsed]) form.setValue(f, parsed[f as keyof typeof parsed] as string) })
 
@@ -179,7 +178,7 @@ export function ProductForm({ product }: ProductFormProps) {
     setSpecsList(prev => [...prev, ...filteredNewSpecs])
 
     if (!form.getValues('name')) form.setValue('name', `${parsed.brand} ${parsed.model} ${parsed.cpu || ''}`.trim())
-    if (!form.getValues('description')) form.setValue('description', parsed.description) // ✅ Inserta HTML generado
+    if (!form.getValues('description')) form.setValue('description', parsed.description)
 
     setShowImporter(false)
     setPasteContent('')
@@ -218,7 +217,6 @@ export function ProductForm({ product }: ProductFormProps) {
   const filteredBrands = POPULAR_BRANDS.filter(b => b.toLowerCase().includes(brandInput?.toLowerCase() || ''))
   const categoryInput = form.watch('category')
   const filteredCategories = CATEGORIES.filter(c => c.toLowerCase().includes(categoryInput?.toLowerCase() || ''))
-  const warrantyInput = form.watch('warrantyMonths')
   const filteredWarranties = WARRANTY_MONTHS
 
   return (
@@ -230,26 +228,34 @@ export function ProductForm({ product }: ProductFormProps) {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[75vh] flex flex-col overflow-hidden">
                 <div className="p-5 border-b bg-blue-50 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-blue-600" /> Importador Inteligente</h3>
-                    <button onClick={() => setShowImporter(false)}><X className="w-5 h-5 text-gray-500" /></button>
+                    <button onClick={() => setShowImporter(false)}><X className="w-5 h-5 text-gray-500 hover:text-red-500 transition" /></button>
                 </div>
                 <div className="flex-1 p-4 bg-gray-50 overflow-auto">
                     <div className="mb-2 text-xs text-blue-600 bg-blue-100 p-2 rounded flex items-center gap-2"><Info className="w-4 h-4" /> <span>Pega aquí el texto desordenado. La IA lo ordenará.</span></div>
-                    <textarea className="w-full h-full p-4 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: ProcesadorCore i3-N305Memoria RAM8 GB..." value={pasteContent} onChange={(e) => setPasteContent(e.target.value)} />
+                    <textarea 
+                        className="w-full h-full p-4 border rounded-xl font-mono text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                        placeholder="Ej: ProcesadorCore i3-N305Memoria RAM8 GB..." 
+                        value={pasteContent} 
+                        onChange={(e) => setPasteContent(e.target.value)} 
+                    />
                 </div>
                 <div className="p-5 border-t bg-white flex justify-end gap-3">
-                    <button onClick={() => setShowImporter(false)} className="px-4 py-2 border rounded-lg text-gray-600 font-bold">Cancelar</button>
+                    <button onClick={() => setShowImporter(false)} className="px-4 py-2 border rounded-lg text-gray-600 font-bold hover:bg-gray-50">Cancelar</button>
                     <button onClick={handleSmartImport} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 flex items-center gap-2"><ClipboardPaste className="w-4 h-4" /> Procesar Datos</button>
                 </div>
             </div>
         </div>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 rounded-lg shadow-sm space-y-8 border border-gray-100">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 space-y-8">
         
         {/* HEADER */}
-        <div className="flex justify-between items-center pb-4 border-b">
-            <h2 className="text-xl font-bold text-gray-800">{product ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-            <button type="button" onClick={() => setShowImporter(true)} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-100"><Sparkles className="w-4 h-4" /> Importar con IA</button>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{product ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+              <p className="text-sm text-gray-500">Completa la información para publicar en la tienda.</p>
+            </div>
+            <button type="button" onClick={() => setShowImporter(true)} className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><Sparkles className="w-4 h-4" /> Importar con IA</button>
         </div>
 
         {/* IMÁGENES */}
@@ -259,7 +265,7 @@ export function ProductForm({ product }: ProductFormProps) {
             {form.formState.errors.images && <p className="text-red-500 text-xs mt-2 flex items-center gap-1 font-medium"><AlertCircle className="w-3 h-3" /> {form.formState.errors.images.message}</p>}
         </div>
 
-        {/* NOMBRE Y SLUG */}
+        {/* INFO BÁSICA */}
         <div className="grid md:grid-cols-2 gap-6">
             <div>
                 <label className="block text-sm font-bold text-gray-800 mb-1">Nombre del Producto *</label>
@@ -269,7 +275,7 @@ export function ProductForm({ product }: ProductFormProps) {
             <div>
                 <label className="block text-sm font-bold mb-1 text-gray-700">Slug (URL Amigable)</label>
                 <div className="flex">
-                    <span className="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg">/productos/</span>
+                    <span className="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg select-none">/productos/</span>
                     <input {...form.register('slug')} className="w-full p-2.5 border border-gray-300 rounded-r-lg bg-gray-50 text-gray-500 cursor-not-allowed" readOnly />
                 </div>
             </div>
@@ -300,7 +306,6 @@ export function ProductForm({ product }: ProductFormProps) {
                 <label className="block text-sm font-bold mb-1 text-gray-700">Stock *</label>
                 <input type="number" {...form.register('stock', { valueAsNumber: true })} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
-            
             {/* GARANTÍA */}
             <div className="relative" ref={warrantyWrapperRef}>
                 <label className="block text-sm font-bold mb-1 flex items-center gap-1 text-gray-700"><ShieldCheck className="w-4 h-4 text-blue-600" /> Garantía (Meses)</label>
@@ -310,7 +315,7 @@ export function ProductForm({ product }: ProductFormProps) {
                 </div>
                 {showWarrantyDropdown && (
                     <div className="absolute z-10 w-full bg-white mt-1 border rounded-lg shadow-xl max-h-40 overflow-y-auto">
-                        {filteredWarranties.map(m => (
+                        {WARRANTY_MONTHS.map(m => (
                             <button key={m} type="button" onClick={() => { form.setValue('warrantyMonths', m); setShowWarrantyDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm">{m === 0 ? '0 (Sin garantía)' : `${m} meses`}</button>
                         ))}
                     </div>
@@ -320,28 +325,20 @@ export function ProductForm({ product }: ProductFormProps) {
 
         {/* CLASIFICACIÓN (CATEGORÍA HÍBRIDA) */}
         <div className="grid md:grid-cols-4 gap-6">
-            
             {/* ✅ CATEGORÍA MEJORADA: INPUT + DROPDOWN */}
             <div className="relative" ref={categoryWrapperRef}>
                 <label className="block text-sm font-bold mb-1 flex items-center gap-1 text-gray-700"><Tag className="w-3.5 h-3.5" /> Categoría</label>
                 <div className="relative">
-                    <input 
-                      {...form.register('category')} 
-                      className="w-full p-2 border border-gray-300 rounded-md pr-8 bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                      placeholder="Escribe o selecciona..." 
-                      onFocus={() => setShowCategoryDropdown(true)} 
-                      autoComplete="off" 
-                    />
+                    <input {...form.register('category')} className="w-full p-2 border border-gray-300 rounded-md pr-8 bg-white focus:ring-2 focus:ring-blue-500 outline-none" onFocus={() => setShowCategoryDropdown(true)} autoComplete="off" />
                     <button type="button" onClick={() => setShowCategoryDropdown(!showCategoryDropdown)} className="absolute right-2 top-2.5"><ChevronDown className="w-4 h-4 text-gray-400" /></button>
                 </div>
                 {showCategoryDropdown && (
-                    <div className="absolute z-10 w-full bg-white mt-1 border rounded-lg shadow-xl max-h-52 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute z-10 w-full bg-white mt-1 border rounded-lg shadow-xl max-h-52 overflow-y-auto">
                         {filteredCategories.map(c => (
                             <button key={c} type="button" onClick={() => { form.setValue('category', c); setShowCategoryDropdown(false); }} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm flex justify-between items-center group transition-colors">
                                 {c} {categoryInput === c && <Check className="w-3 h-3 text-blue-600" />}
                             </button>
                         ))}
-                        {filteredCategories.length === 0 && <div className="p-3 text-xs text-gray-500 text-center bg-gray-50 border-t">Nueva categoría: <strong>"{categoryInput}"</strong></div>}
                     </div>
                 )}
             </div>
@@ -350,8 +347,9 @@ export function ProductForm({ product }: ProductFormProps) {
                 <label className="block text-sm font-bold mb-1 text-gray-700">Condición</label>
                 <select {...form.register('condition')} className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="NEW">Nuevo (Sellado)</option>
-                    <option value="LIKE_NEW">Open Box</option>
+                    <option value="LIKE_NEW">Como Nuevo (Open Box)</option>
                     <option value="USED">Usado</option>
+                    <option value="REFURBISHED">Reacondicionado</option>
                 </select>
             </div>
 
@@ -363,13 +361,11 @@ export function ProductForm({ product }: ProductFormProps) {
                         {filteredBrands.map(b => <button key={b} type="button" onClick={() => { form.setValue('brand', b); setShowBrandDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm">{b}</button>)}
                     </div>
                 )}
-                {form.formState.errors.brand && <p className="text-red-500 text-xs mt-1">Requerido</p>}
             </div>
             
             <div>
                 <label className="block text-sm font-bold mb-1 text-gray-700">Modelo <span className="text-red-500">*</span></label>
                 <input {...form.register('model')} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none" />
-                {form.formState.errors.model && <p className="text-red-500 text-xs mt-1">Requerido</p>}
             </div>
         </div>
 
@@ -389,7 +385,7 @@ export function ProductForm({ product }: ProductFormProps) {
         {/* ESPECIFICACIONES DINÁMICAS (CON AUTOCOMPLETADO) */}
         <div className="border-t border-gray-100 pt-6">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800"><Box className="w-5 h-5 text-blue-600" /> Detalles Adicionales</h3>
+                <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800"><LayoutGrid className="w-5 h-5 text-blue-600" /> Especificaciones Extra</h3>
                 <button type="button" onClick={addSpecRow} className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition border border-blue-200">+ Agregar Fila</button>
             </div>
             
@@ -399,10 +395,10 @@ export function ProductForm({ product }: ProductFormProps) {
                         {specsList.map((spec, idx) => (
                             <tr key={idx} className="group hover:bg-white transition-colors">
                                 <td className="p-1 w-1/3">
-                                    <input list="common-specs" value={spec.key} onChange={(e) => updateSpecRow(idx, 'key', e.target.value)} className="w-full p-2 font-bold bg-transparent focus:bg-white rounded-md focus:ring-1 focus:ring-blue-400 outline-none" placeholder="Característica" />
+                                    <input list="common-specs" value={spec.key} onChange={(e) => updateSpecRow(idx, 'key', e.target.value)} className="w-full p-2 font-bold bg-transparent focus:bg-white rounded-md focus:ring-1 focus:ring-blue-400 outline-none transition" placeholder="Característica" />
                                 </td>
                                 <td className="p-1">
-                                    <input value={spec.value} onChange={(e) => updateSpecRow(idx, 'value', e.target.value)} className="w-full p-2 bg-transparent focus:bg-white rounded-md focus:ring-1 focus:ring-blue-400 outline-none" placeholder="Valor" />
+                                    <input value={spec.value} onChange={(e) => updateSpecRow(idx, 'value', e.target.value)} className="w-full p-2 bg-transparent focus:bg-white rounded-md focus:ring-1 focus:ring-blue-400 outline-none transition" placeholder="Valor" />
                                 </td>
                                 <td className="w-10 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button type="button" onClick={() => removeSpecRow(idx)} className="p-1.5 hover:bg-red-100 rounded-md text-red-500 transition"><Trash2 className="w-4 h-4" /></button>
@@ -419,7 +415,7 @@ export function ProductForm({ product }: ProductFormProps) {
         {/* FOOTER */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-6 border-t border-gray-100 pt-6">
             <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" {...form.register('featured')} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> <span className="font-bold text-gray-700">Destacado</span></label>
+                <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" {...form.register('featured')} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> <span className="font-bold text-gray-700">Destacado en Inicio</span></label>
                 <label className="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" {...form.register('active')} className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500" /> <span className="font-bold text-gray-700">Activo</span></label>
             </div>
 
