@@ -1,22 +1,25 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-// 👇 IMPORTANTE: Mantener las llaves { } si tu archivo providers.tsx usa 'export function'
-import { Providers } from './providers' 
+import { Providers } from './providers'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
-import FloatingWhatsApp from '@/components/ui/FloatingWhatsApp' // 👈 Importamos aquí
+import FloatingWhatsApp from '@/components/ui/FloatingWhatsApp'
+import KiroAssistant from '@/components/ai/KiroAssistant' // ✅ Tu Asistente IA
+import AdminFloatingButton from '@/components/admin/AdminFloatingButton' // ✅ Tu Botón Admin Nuevo
+import { ToastProvider } from '@/contexts/ToastContext'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://store.netsystems.net.pe/'),
   title: {
-    default: 'Servitek - Laptops Premium y Gamer en Perú',
-    template: '%s | Servitek',
+    default: 'Netsystems - Laptops Premium y Gamer en Perú',
+    template: '%s | Netsystems',
   },
   description: 'Compra las mejores laptops del mercado en Perú. MacBook, Dell, HP, Lenovo y más. Envío gratis en Lima y garantía oficial.',
   keywords: ['laptops peru', 'venta laptops', 'computadoras gamer', 'MacBook', 'Dell', 'Lenovo'],
-  authors: [{ name: 'Servitek Technologies' }],
+  authors: [{ name: 'Netsystems Perú' }],
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-icon.png',
@@ -24,9 +27,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'es_PE',
-    url: 'https://servitek.com',
-    siteName: 'Servitek',
-    title: 'Servitek - Laptops Premium y Gamer',
+    url: 'https://store.netsystems.net.pe/',
+    siteName: 'Netsystems',
+    title: 'Netsystems - Laptops Premium y Gamer',
     description: 'Especialistas en tecnología de alto rendimiento.',
   },
 }
@@ -40,14 +43,31 @@ export default function RootLayout({
     <html lang="es">
       <body className={inter.className}>
         <Providers>
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Footer />
-            <FloatingWhatsApp /> {/* 👈 Aquí va, visible en TODA la app */}
-          </div>
+          <ToastProvider>
+            
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-grow">
+                {children}
+              </main>
+              <Footer />
+            </div>
+
+            {/* ========================================================
+                ZONA DE INTERFAZ FLOTANTE (UI OVERLAY)
+            ======================================================== */}
+            
+            {/* 1. Botón WhatsApp (Derecha Abajo) */}
+            <FloatingWhatsApp />
+
+            {/* 2. Asistente Kiro IA (Derecha, encima del WhatsApp) */}
+            {/* Nota: Kiro ya tiene su propio posicionamiento dentro del componente */}
+            <KiroAssistant />
+
+            {/* 3. Botón Admin (Izquierda Abajo - Solo visible para ti) */}
+            <AdminFloatingButton />
+
+          </ToastProvider>
         </Providers>
       </body>
     </html>

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useCart } from '@/contexts/CartContext'
-import { ShoppingCart, User, Menu, X, ChevronDown, LogOut, ShieldCheck, Home, Phone, Truck, MessageCircle } from 'lucide-react'
+import { ShoppingCart, User, Menu, X, ChevronDown, LogOut, ShieldCheck, Home, Truck, MessageCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import SearchBar from '@/components/ui/SearchBar'
 
@@ -31,22 +31,15 @@ export function Navbar() {
   const isActive = (path: string) => path === '/' ? pathname === '/' : pathname.startsWith(path)
   const isAdmin = (session?.user as any)?.role === 'ADMIN'
 
-  // Número de WhatsApp (Formato limpio)
   const whatsappNumber = "51924076526"
 
   return (
     <>
-      {/* =========================================================
-          ✅ TOP BAR (ESTÁTICA): Se va al hacer scroll.
-          Mejorada para móvil: Centrada y con iconos claros.
-      ========================================================= */}
+      {/* TOP BAR */}
       <div className="bg-gray-900 text-white py-2 text-[10px] md:text-xs font-medium relative z-[61] border-b border-gray-800">
         <div className="container mx-auto px-4 flex justify-center md:justify-between items-center">
           
-          {/* IZQUIERDA: DATOS CLAVE */}
           <div className="flex items-center gap-4 md:gap-6">
-            
-            {/* 1. WhatsApp (Resaltado en Móvil) */}
             <a 
               href={`https://wa.me/${whatsappNumber}`}
               target="_blank"
@@ -60,22 +53,18 @@ export function Navbar() {
 
             <span className="w-px h-3 bg-gray-700"></span>
 
-            {/* 2. Envíos (Texto corto en móvil) */}
             <span className="flex items-center gap-1.5 text-blue-300 font-bold">
               <Truck className="w-3.5 h-3.5" /> 
               <span className="hidden sm:inline">Envíos GRATIS &gt; S/ 500</span>
               <span className="sm:hidden">Envíos Gratis</span>
             </span>
 
-            {/* 3. Garantía (Solo PC) */}
             <span className="hidden lg:flex items-center gap-1.5 text-emerald-400 font-bold border-l border-gray-700 pl-6">
               <ShieldCheck className="w-3.5 h-3.5" /> 
               <span>Garantía Asegurada</span>
             </span>
-
           </div>
 
-          {/* DERECHA: ENLACES SECUNDARIOS (Solo PC) */}
           <div className="hidden md:flex items-center gap-6 text-gray-400">
             <Link href="/contacto" className="hover:text-white transition text-[11px]">Centro de Ayuda</Link>
             <Link href="/pedidos" className="hover:text-white transition text-[11px]">Rastrea tu pedido</Link>
@@ -83,24 +72,17 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* =========================================================
-          NAVBAR PRINCIPAL (STICKY): Se queda pegado.
-      ========================================================= */}
+      {/* NAVBAR PRINCIPAL */}
       <nav className="bg-white shadow-sm border-b sticky top-0 z-[60]">
         <div className="container mx-auto px-4">
           
-          {/* --- FILA 1: LOGO + BUSCADOR + ICONOS --- */}
           <div className="flex flex-col md:flex-row items-center justify-between py-3 gap-3 md:gap-8">
-            
-            {/* LOGO & Controles Móviles */}
             <div className="flex items-center justify-between w-full md:w-auto">
               <Link href="/" className="text-2xl md:text-3xl font-extrabold text-blue-700 tracking-tight hover:opacity-80 transition flex-shrink-0">
                 Netsystems
               </Link>
 
-              {/* Botones Móvil (Carrito y Menú) */}
               <div className="flex md:hidden items-center gap-2">
-                {/* Carrito Móvil Mejorado */}
                 <Link href="/carrito" className="relative flex items-center justify-center p-2 bg-blue-50 text-blue-600 rounded-lg active:scale-95 transition-all border border-blue-100">
                   <ShoppingCart className="w-5 h-5" />
                   {itemCount > 0 && (
@@ -110,7 +92,6 @@ export function Navbar() {
                   )}
                 </Link>
 
-                {/* Botón Menú Explícito */}
                 <button 
                   className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg active:scale-95 transition-all font-bold text-xs uppercase tracking-wide border border-gray-200" 
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -121,12 +102,10 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* BUSCADOR SIEMPRE VISIBLE */}
             <div className="w-full md:max-w-2xl flex-1">
               <SearchBar />
             </div>
 
-            {/* ICONOS PC */}
             <div className="hidden md:flex items-center gap-6 flex-shrink-0">
               {session ? (
                 <div className="flex items-center gap-3">
@@ -158,9 +137,7 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* --- FILA 2: NAVEGACIÓN PC CENTRADA --- */}
           <div className="hidden md:flex items-center justify-center space-x-10 h-12 border-t border-gray-100 text-sm font-medium">
-            
             <Link href="/" className={`flex items-center gap-1.5 transition ${isActive('/') ? 'text-blue-600 font-extrabold' : 'text-gray-600 hover:text-blue-600'}`}>
               <Home className="w-4 h-4" /> Inicio
             </Link>
@@ -178,7 +155,16 @@ export function Navbar() {
                 onMouseLeave={() => setCategoriesOpen(false)}
               >
                 {categories.map((cat) => (
-                  <Link key={cat.name} href={cat.href} className="block px-5 py-2.5 text-gray-600 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors" onClick={() => setCategoriesOpen(false)}>{cat.name}</Link>
+                  <Link 
+                    key={cat.name} 
+                    href={cat.href} 
+                    /* ✅ UX FIX: scroll={false} evita el salto brusco al inicio */
+                    scroll={false}
+                    className="block px-5 py-2.5 text-gray-600 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors" 
+                    onClick={() => setCategoriesOpen(false)}
+                  >
+                    {cat.name}
+                  </Link>
                 ))}
               </div>
             </div>
@@ -198,7 +184,7 @@ export function Navbar() {
             )}
           </div>
 
-          {/* --- MENÚ MÓVIL --- */}
+          {/* MENÚ MÓVIL */}
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-gray-100 animate-fade-in-down bg-white absolute left-0 right-0 shadow-xl border-b z-50 h-[calc(100vh-130px)] overflow-y-auto">
               <div className="flex flex-col space-y-1 container mx-auto px-4 pb-20">
@@ -244,7 +230,16 @@ export function Navbar() {
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-2 mt-6">Categorías</p>
                 <div className="space-y-1">
                   {categories.map((cat) => (
-                     <Link key={cat.name} href={cat.href} className="block px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 rounded-xl font-medium border border-transparent hover:border-gray-100">{cat.name}</Link>
+                     <Link 
+                        key={cat.name} 
+                        href={cat.href} 
+                        /* ✅ UX FIX: scroll={false} también en móvil */
+                        scroll={false}
+                        className="block px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 rounded-xl font-medium border border-transparent hover:border-gray-100"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {cat.name}
+                      </Link>
                   ))}
                 </div>
               </div>
@@ -252,18 +247,6 @@ export function Navbar() {
           )}
         </div>
       </nav>
-
-      {/* ✅ BOTÓN ADMIN FLOTANTE */}
-      {isAdmin && (
-        <Link 
-          href="/admin" 
-          className="fixed bottom-6 left-4 md:left-6 z-[80] flex items-center gap-2 bg-purple-600 text-white px-4 py-3 rounded-full shadow-[0_8px_30px_rgb(147,51,234,0.3)] hover:scale-105 hover:bg-purple-700 transition-all duration-300 group font-bold text-sm"
-        >
-          <ShieldCheck className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-          <span className="hidden md:block">Panel de Administración</span>
-          <span className="block md:hidden">Admin</span>
-        </Link>
-      )}
     </>
   )
 }

@@ -2,22 +2,23 @@
 
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
-import { usePathname } from 'next/navigation' // ✅ NUEVO: Detecta la ruta actual
+import { usePathname } from 'next/navigation'
 
 export default function FloatingWhatsApp() {
   const pathname = usePathname()
   
-  // ✅ LÓGICA DE UX: ¿Estamos en la página de un producto?
+  // 1. Detectar si es página de producto (para subir el botón)
   const isProductPage = pathname?.includes('/productos/')
 
-  // Configura aquí tu número real
+  // 2. ✅ NUEVO: Detectar si estamos en el Admin o Login para OCULTARLO
+  const isAdminPage = pathname?.startsWith('/admin') || pathname?.startsWith('/login')
+
   const whatsappNumber = "51924076526" 
   const defaultMessage = "Hola Netsystems, revise su pagina web y estoy interesado."
-
-  // ✅ POSICIÓN DINÁMICA: 
-  // Si está en producto = bottom-28 (para saltar la barra).
-  // Si está en el inicio = bottom-6 (posición estándar natural).
   const bottomPosition = isProductPage ? "bottom-28 md:bottom-8" : "bottom-6 md:bottom-8"
+
+  // Si estamos en Admin, no renderizamos nada
+  if (isAdminPage) return null
 
   return (
     <Link
@@ -28,7 +29,6 @@ export default function FloatingWhatsApp() {
     >
       <div className="relative">
         <MessageCircle className="w-6 h-6 text-white group-hover:animate-bounce" />
-        {/* Punto verde "En Línea" */}
         <span className="absolute -top-1 -right-1 flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-200 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-3 w-3 bg-white border-2 border-[#25D366]"></span>

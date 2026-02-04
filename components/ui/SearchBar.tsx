@@ -4,8 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
+// ❌ Eliminamos Image de next/image
+// import Image from 'next/image' 
 import { formatPrice } from '@/lib/utils'
+// ✅ Importamos tu componente robusto
+import UniversalImage from '@/components/ui/UniversalImage'
 
 interface SearchResult {
   id: string
@@ -44,10 +47,12 @@ export default function SearchBar() {
         try {
           const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
           const data = await res.json()
-          setResults(data)
+          // Aseguramos que data sea un array (por si el API falla)
+          setResults(Array.isArray(data) ? data : [])
           setIsOpen(true)
         } catch (error) {
           console.error(error)
+          setResults([])
         } finally {
           setIsLoading(false)
         }
@@ -74,7 +79,7 @@ export default function SearchBar() {
     setIsOpen(false)
   }
 
-  // ✅ UX FIX: Bloquear scroll del fondo en móvil cuando el buscador está abierto
+  // UX FIX: Bloquear scroll del fondo en móvil
   useEffect(() => {
     if (isOpen && window.innerWidth < 768) {
       document.body.style.overflow = 'hidden'
@@ -86,7 +91,7 @@ export default function SearchBar() {
 
   return (
     <>
-      {/* ✅ OVERLAY MÓVIL: Oscurece el fondo para enfocar al usuario (solo móvil) */}
+      {/* OVERLAY MÓVIL */}
       {isOpen && (
         <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] transition-opacity animate-fade-in" />
       )}
@@ -117,7 +122,7 @@ export default function SearchBar() {
           )}
         </form>
 
-        {/* ✅ CAJA DE RESULTADOS: Scroll inteligente para PC y Móvil */}
+        {/* CAJA DE RESULTADOS */}
         {isOpen && results.length > 0 && (
           <div className="absolute top-full mt-2 w-full bg-white md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-[80px] max-md:mt-0 max-md:rounded-t-2xl z-[100] animate-fade-in-up">
             
@@ -126,7 +131,6 @@ export default function SearchBar() {
               <button onClick={() => setIsOpen(false)} className="text-xs font-bold text-blue-600">Cerrar</button>
             </div>
 
-            {/* Lista con altura dinámica: En PC max 350px, en Móvil ocupa todo el alto libre */}
             <ul className="divide-y divide-gray-50 overflow-y-auto flex-1 custom-scrollbar md:max-h-[350px]">
               {results.map((product) => (
                 <li key={product.id}>
@@ -135,9 +139,15 @@ export default function SearchBar() {
                     onClick={() => setIsOpen(false)}
                     className="flex items-center gap-4 p-4 hover:bg-blue-50/50 transition-colors group"
                   >
-                    <div className="w-14 h-14 relative flex-shrink-0 bg-gray-50 rounded-xl p-1 border border-gray-100">
-                      <Image src={product.image} alt={product.name} fill className="object-contain mix-blend-multiply" />
+                    {/* ✅ USO DE UNIVERSAL IMAGE PARA EVITAR ERRORES */}
+                    <div className="w-14 h-14 relative flex-shrink-0 bg-gray-50 rounded-xl p-1 border border-gray-100 flex items-center justify-center overflow-hidden">
+                      <UniversalImage 
+                        src={product.image || '/placeholder-laptop.jpg'} 
+                        alt={product.name} 
+                        className="w-full h-full object-contain mix-blend-multiply" 
+                      />
                     </div>
+                    
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-800 truncate group-hover:text-blue-700 transition-colors leading-tight">{product.name}</p>
                       <p className="text-xs text-gray-400 font-medium mt-1">{product.category} • {product.brand}</p>
@@ -150,7 +160,6 @@ export default function SearchBar() {
               ))}
             </ul>
             
-            {/* Botón Ver Todos */}
             <div className="bg-gray-50 p-3 md:p-3 text-center border-t border-gray-100 flex-shrink-0">
               <button onClick={handleSubmit} className="text-sm md:text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-2 md:py-0 w-full">
                 Ver todos los resultados para "{query}" &rarr;
