@@ -1,8 +1,9 @@
 'use client'
 
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react'
-import { CheckCircle2, X, ShoppingCart, AlertCircle } from 'lucide-react'
+import { CheckCircle2, X, ShoppingCart, AlertCircle, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
+import UniversalImage from '@/components/ui/UniversalImage'
 
 interface ToastData {
   id: number
@@ -24,7 +25,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastData | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Función auxiliar para manejar el auto-cierre con limpieza de timer
   const startTimer = (duration: number) => {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
@@ -35,19 +35,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = ({ product }: { product: { name: string, image: string, price: number } }) => {
     const newId = Date.now()
     setToast({ id: newId, visible: true, type: 'success', product })
-    startTimer(5000) // 5s para compras (necesitan tiempo para ver el botón)
+    startTimer(5000)
   }
 
   const showAdminToast = (message: string) => {
     const newId = Date.now()
     setToast({ id: newId, visible: true, type: 'admin-success', message })
-    startTimer(3000) // ⚡ 3s para acciones admin (Rápido y ágil)
+    startTimer(3000)
   }
 
   const showError = (message: string) => {
     const newId = Date.now()
     setToast({ id: newId, visible: true, type: 'error', message })
-    startTimer(6000) // 6s para errores (necesitan leerse)
+    startTimer(6000)
   }
 
   const closeToast = () => {
@@ -55,71 +55,83 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast((prev) => prev ? { ...prev, visible: false } : null)
   }
 
-  // Pausar si el usuario pone el mouse encima (UX PRO)
-  const handleMouseEnter = () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-  }
-
-  // Reanudar al quitar el mouse
-  const handleMouseLeave = () => {
-    if (toast?.visible) {
-        startTimer(toast.type === 'success' ? 4000 : 2000)
-    }
-  }
+  const handleMouseEnter = () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  const handleMouseLeave = () => { if (toast?.visible) startTimer(toast.type === 'success' ? 4000 : 2000) }
 
   return (
     <ToastContext.Provider value={{ showToast, showAdminToast, showError }}>
       {children}
       
+      {/* ✅ CORRECCIÓN VISUAL:
+          1. style={{ zIndex: 99999 }}: Fuerza bruta para estar encima de todo.
+          2. top-24 md:top-32: Bajamos la notificación para que NO choque con el Navbar (que mide ~100px).
+             Ahora aparecerá flotando limpiamente debajo del encabezado.
+      */}
       <div 
-        className={`fixed top-24 right-4 z-[9999] transition-all duration-500 transform ${toast?.visible ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none'}`}
+        style={{ zIndex: 99999 }}
+        className={`fixed top-24 md:top-32 right-4 md:right-6 transition-all duration-500 transform
+          ${toast?.visible ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none'}
+        `}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         
-        {/* Toast Carrito */}
+        {/* --- 1. TOAST CARRITO (CLIENTE) --- */}
         {toast?.type === 'success' && toast.product && (
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-80 overflow-hidden animate-fade-in-left">
-            <div className="bg-green-600 px-4 py-3 flex justify-between items-center text-white">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-[90vw] md:w-80 overflow-hidden animate-fade-in-left">
+            <div className="bg-green-600 px-4 py-3 flex justify-between items-center text-white shadow-sm">
               <div className="flex items-center gap-2 font-bold text-sm"><CheckCircle2 className="w-5 h-5" /> ¡Agregado al carrito!</div>
-              <button onClick={closeToast} className="hover:bg-green-700 p-1 rounded transition"><X className="w-4 h-4" /></button>
+              <button onClick={closeToast} className="hover:bg-green-700/50 p-1 rounded transition"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 bg-white">
               <div className="flex gap-3 mb-4">
-                <div className="relative w-16 h-16 border rounded bg-gray-50 flex-shrink-0">
-                    <img src={toast.product.image || '/placeholder-laptop.jpg'} alt="" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                <div className="relative w-14 h-14 border border-gray-100 rounded-lg bg-gray-50 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                    <UniversalImage 
+                      src={toast.product.image || '/placeholder-laptop.jpg'} 
+                      alt={toast.product.name} 
+                      className="w-full h-full object-contain p-1" 
+                    />
                 </div>
-                <div className="flex-1 min-w-0"><h4 className="font-bold text-gray-800 text-sm line-clamp-2">{toast.product.name}</h4></div>
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <h4 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight">{toast.product.name}</h4>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={closeToast} className="px-3 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition">Seguir comprando</button>
-                <Link href="/carrito" onClick={closeToast} className="px-3 py-2 text-xs font-bold text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center justify-center gap-1 transition shadow-sm"><ShoppingCart className="w-3 h-3" /> Ver Carrito</Link>
+                <button onClick={closeToast} className="px-3 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">Seguir viendo</button>
+                <Link href="/carrito" onClick={closeToast} className="px-3 py-2 text-xs font-bold text-white bg-gray-900 rounded-lg hover:bg-black flex items-center justify-center gap-1 transition shadow-sm"><ShoppingCart className="w-3 h-3" /> Ver Carrito</Link>
               </div>
             </div>
           </div>
         )}
 
-        {/* Toast Admin (Éxito) */}
+        {/* --- 2. TOAST ADMIN (PANEL) --- */}
         {toast?.type === 'admin-success' && (
-          <div className="bg-white rounded-xl shadow-xl border-l-4 border-green-500 w-80 p-4 flex items-center gap-3 animate-fade-in-left bg-gradient-to-r from-white to-green-50/30">
-            <div className="p-2 bg-green-100 rounded-full text-green-600"><CheckCircle2 className="w-5 h-5" /></div>
-            <div className="flex-1">
-                <h4 className="font-bold text-gray-900 text-sm">¡Listo!</h4>
-                <p className="text-xs text-gray-600">{toast.message}</p>
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-[90vw] md:w-80 overflow-hidden animate-fade-in-left">
+            <div className="bg-blue-600 px-4 py-3 flex justify-between items-center text-white shadow-sm">
+              <div className="flex items-center gap-2 font-bold text-sm"><ShieldCheck className="w-5 h-5" /> Acción Exitosa</div>
+              <button onClick={closeToast} className="hover:bg-blue-700/50 p-1 rounded transition"><X className="w-4 h-4" /></button>
             </div>
-            <button onClick={closeToast} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition"><X className="w-4 h-4" /></button>
+            <div className="p-4 flex items-center gap-3">
+               <div className="p-2 bg-green-50 rounded-full flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+               </div>
+               <div>
+                  <p className="text-sm font-medium text-gray-700 leading-snug">{toast.message}</p>
+               </div>
+            </div>
           </div>
         )}
 
-        {/* Toast Error */}
+        {/* --- 3. TOAST ERROR --- */}
         {toast?.type === 'error' && (
-          <div className="bg-white rounded-xl shadow-xl border-l-4 border-red-500 w-80 p-4 flex items-start gap-3 animate-fade-in-left bg-gradient-to-r from-white to-red-50/30">
-            <div className="p-2 bg-red-100 rounded-full text-red-600"><AlertCircle className="w-5 h-5" /></div>
-            <div className="flex-1">
-                <h4 className="font-bold text-gray-900 text-sm">Error</h4>
-                <p className="text-xs text-gray-600 mt-1 leading-snug">{toast.message}</p>
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-[90vw] md:w-80 overflow-hidden animate-fade-in-left">
+            <div className="bg-red-600 px-4 py-3 flex justify-between items-center text-white shadow-sm">
+              <div className="flex items-center gap-2 font-bold text-sm"><AlertCircle className="w-5 h-5" /> Ha ocurrido un error</div>
+              <button onClick={closeToast} className="hover:bg-red-700/50 p-1 rounded transition"><X className="w-4 h-4" /></button>
             </div>
-            <button onClick={closeToast} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition"><X className="w-4 h-4" /></button>
+            <div className="p-4">
+                <p className="text-sm text-gray-600 font-medium leading-snug">{toast.message}</p>
+            </div>
           </div>
         )}
 
