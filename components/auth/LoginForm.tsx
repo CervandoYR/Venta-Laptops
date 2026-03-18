@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
@@ -34,8 +34,12 @@ export function LoginForm() {
         setLoading(false)
       } else {
         // Redirección inteligente: Si es admin, al panel. Si no, al home.
-        // Como no sabemos el rol aquí fácilmente sin llamar a sesión, mandamos al home y el middleware protege.
-        router.push('/') 
+        const session = await getSession()
+        if (session?.user?.role === 'ADMIN') {
+          router.push('/admin')
+        } else {
+          router.push('/') 
+        }
         router.refresh()
       }
     } catch (error) {
