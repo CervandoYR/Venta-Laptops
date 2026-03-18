@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { ArrowLeft, Save, Trash2, MapPin, User, Mail, Truck, Phone } from 'lucide-react'
 import { UpdateOrderStatus } from '@/components/admin/UpdateOrderStatus'
 import AdminOrderClientActions from './AdminOrderClientActions'
+import BackButton from '@/components/ui/BackButton'
 
 // 1. COMPONENTE DE SERVIDOR (Carga datos)
 export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
@@ -23,9 +24,9 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
             
             {/* Header y Botones */}
             <div className="flex items-center justify-between mb-6">
-                <Link href="/admin/pedidos" className="flex items-center text-gray-500 hover:text-blue-600">
-                    <ArrowLeft className="w-5 h-5 mr-1" /> Volver
-                </Link>
+                <div className="flex items-center text-gray-500 hover:text-blue-600">
+                    <BackButton fallbackHref="/admin/pedidos" />
+                </div>
                 
                 {/* Botón Eliminar (Lógica cliente) */}
                 <AdminOrderClientActions orderId={order.id} mode="delete" />

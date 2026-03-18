@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
+import BackButton from '@/components/ui/BackButton'
 
 const TicketQR = dynamic(() => import('@/components/ui/TicketQR'), { ssr: false })
 
@@ -202,10 +203,10 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
         <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between">
           <div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Consulta el estado de tu equipo:</p>
-            <p className="text-xs text-blue-700 font-mono">{`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/seguimiento/${ticket.id}`}</p>
+            <p className="text-xs text-blue-700 font-mono">{trackingUrl}</p>
             <p className="text-[10px] text-gray-400 mt-1">Escanea el QR con tu celular</p>
           </div>
-          <TicketQR ticketId={ticket.id} baseUrl={process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'} />
+          <TicketQR ticketId={ticket.id} baseUrl={trackingUrl.split('/seguimiento')[0]} />
         </div>
       </div>
 
@@ -238,9 +239,7 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <Link href="/admin/servicios" className="p-2 bg-white hover:bg-gray-100 rounded-full border shadow-sm transition-colors text-gray-600">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
+            <BackButton fallbackHref="/admin/servicios" />
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Servicio Técnico</p>
               <h1 className="text-3xl font-extrabold text-gray-900">ST-{ticket.number.toString().padStart(4, '0')}</h1>
@@ -251,22 +250,21 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/servicios/${ticket.id}/editar`} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white shadow-md shadow-blue-500/20 rounded-xl hover:bg-blue-700 font-bold transition-all text-sm">
+              <Edit className="w-4 h-4" /> Editar Ticket y Accesorios
+            </Link>
             <button
               onClick={() => {
                 const prev = document.title
                 document.title = `ST-${ticket.number.toString().padStart(4, '0')} - Zona Notebook`
                 window.print()
-                // Restore after slight delay (print dialog may be async)
                 setTimeout(() => { document.title = prev }, 1000)
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors shadow-sm text-sm">
               <Printer className="w-4 h-4" /> Imprimir / Guardar PDF
             </button>
-            <Link href={`/admin/servicios/${ticket.id}/editar`} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 font-medium transition-colors text-sm">
-              <Edit className="w-4 h-4" /> Editar
-            </Link>
             <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-medium transition-colors text-sm">
-              <Trash2 className="w-4 h-4" /> Eliminar
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>

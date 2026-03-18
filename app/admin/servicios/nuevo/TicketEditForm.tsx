@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Monitor, AlertCircle, DollarSign, Save, Search, CheckCircle2, Package, Check, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { Check, Loader2, Save, User, Laptop, Wrench, Package, FileText, Search, Plus, Trash2, Calendar, ClipboardList, AlertCircle, MapPin, Tablet, Smartphone, HardDrive, Cpu, DollarSign, Monitor, CheckCircle2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 // ─── Physical checklists by device type ─────────────────────
@@ -475,19 +476,24 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
         <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-5">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">🔗 Link de seguimiento público</p>
           <p className="text-sm text-blue-700 font-mono break-all selectivity-text">
-            {typeof window !== 'undefined' ? `${window.location.origin}/seguimiento/${ticketId}` : `/seguimiento/${ticketId}`}
+            {typeof window !== "undefined" ? `${window.location.origin}/seguimiento/${ticketId}` : `/seguimiento/${ticketId}`}
           </p>
           <p className="text-xs text-gray-400 mt-1">Comparte este link con el cliente para que vea el estado de su equipo.</p>
         </div>
       )}
 
-      {/* SAVE */}
-      <div className="sticky bottom-5 z-10">
-        <button type="button" disabled={loading} onClick={submit}
-          className="w-full py-5 bg-gray-900 hover:bg-black text-white rounded-3xl font-black text-xl tracking-wide transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50 active:scale-[0.99]">
-          {loading
-            ? <><Loader2 className="w-6 h-6 animate-spin" /> Guardando...</>
-            : <><Save className="w-6 h-6" /> {isEdit ? 'Guardar Cambios' : 'Crear Ticket de Servicio'}</>}
+      {/* Buttons */}
+      <div className="sticky bottom-4 z-20 flex gap-4 pt-4 mt-6 border-t border-gray-100 bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-2xl">
+        <Link 
+          href={isEdit ? `/admin/servicios/${ticketId}` : "/admin/servicios"}
+          className="px-6 py-4 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-colors text-center shadow-sm whitespace-nowrap"
+        >
+          Cancelar
+        </Link>
+        <button type="submit" disabled={loading}
+          className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-2 text-lg active:scale-[0.98]">
+          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+          {isEdit ? 'Actualizar Orden' : 'Generar Orden'}
         </button>
       </div>
 

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Trash2, Shield, ShieldAlert, User as UserIcon, Mail, Calendar, Loader2, Plus, X } from 'lucide-react'
+import { Search, Trash2, Shield, ShieldAlert, User as UserIcon, Mail, Calendar, Loader2, Plus, X, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import BackButton from '@/components/ui/BackButton'
+import Link from 'next/link'
 
 interface UserType {
   id: string
@@ -113,7 +113,9 @@ export function UsersClient({ initialUsers, currentUserId }: { initialUsers: any
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <BackButton fallbackHref="/admin" />
+          <Link href="/admin" className="p-2 bg-white hover:bg-gray-100 rounded-full border shadow-sm transition-colors text-gray-600" title="Regresar al panel">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h1>
             <p className="text-gray-500 mt-1">Administra accesos y visualiza clientes ({users.length})</p>

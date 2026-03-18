@@ -6,7 +6,7 @@ export default function BackButton({ fallbackHref }: { fallbackHref: string }) {
   const router = useRouter()
   return (
     <button onClick={() => {
-      if (window.history.length > 2) {
+      if (window.history.length > 1) {
         router.back()
       } else {
         router.push(fallbackHref)
