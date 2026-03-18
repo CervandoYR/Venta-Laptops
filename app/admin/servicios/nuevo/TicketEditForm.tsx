@@ -209,12 +209,14 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
         if (!r.ok) throw new Error(await r.text())
         toast.success('✅ Ticket actualizado')
         router.push(`/admin/servicios/${ticketId}`)
+        router.refresh()
       } else {
         const r = await fetch('/api/servicios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!r.ok) throw new Error(await r.text())
         const d = await r.json()
         toast.success('✅ Servicio creado')
         router.push(`/admin/servicios/${d.id}`)
+        router.refresh()
       }
     } catch (err: any) {
       toast.error('❌ Error: ' + err.message)

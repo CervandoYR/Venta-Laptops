@@ -251,7 +251,7 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href={`/admin/servicios/${ticket.id}/editar`} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white shadow-md shadow-blue-500/20 rounded-xl hover:bg-blue-700 font-bold transition-all text-sm">
-              <Edit className="w-4 h-4" /> Editar Ticket y Accesorios
+              <Edit className="w-4 h-4" /> Editar Ticket
             </Link>
             <button
               onClick={() => {
