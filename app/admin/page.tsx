@@ -51,8 +51,8 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-gray-50/50 bg-admin-dots">
+      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
 
         {/* ── Page Header ─────────────────────────────────── */}
         <div className="flex items-center justify-between mb-8">
@@ -225,6 +225,12 @@ export default async function AdminPage() {
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${statusBadge(ticket.status)}`}>
                       {statusLabel(ticket.status)}
+                    </span>
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border
+                      ${ticket.paymentStatus === 'PAID'    ? 'bg-green-50 text-green-700 border-green-200'
+                      : ticket.paymentStatus === 'PARTIAL' ? 'bg-blue-50 text-blue-600 border-blue-200'
+                      :                                      'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                      {ticket.paymentStatus === 'PAID' ? '✅ Pagado' : ticket.paymentStatus === 'PARTIAL' ? `💵 Abono · ${formatPrice(ticket.paidAmount)}` : '⏳ Sin pago'}
                     </span>
                     {ticket.technician && (
                       <p className="text-xs text-gray-400">{ticket.technician.name}</p>

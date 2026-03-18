@@ -67,6 +67,26 @@ const PHYSICAL_DEFAULT = [
 
 const BASE_ACCESSORIES = ['Cargador', 'Bolsa / Mochila', 'Mouse', 'Auriculares', 'Cable USB', 'Adaptador', 'Manual']
 
+// ─── Hardware suggestion lists ────────────────────────────────
+const BRANDS = ['HP', 'Lenovo', 'Dell', 'Asus', 'Acer', 'Apple', 'MSI', 'Samsung', 'Toshiba', 'Sony', 'Huawei', 'LG']
+const CPUS = ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'AMD Ryzen 9', 'Intel Celeron', 'Intel Pentium', 'Apple M1', 'Apple M2', 'Apple M3']
+const RAMS = ['4GB DDR4', '8GB DDR4', '16GB DDR4', '32GB DDR4', '4GB DDR3', '8GB DDR3', '16GB DDR3', '2GB DDR3']
+const DISKS = ['256GB SSD', '512GB SSD', '1TB SSD', '256GB NVMe', '512GB NVMe', '1TB NVMe', '500GB HDD', '1TB HDD', '2TB HDD']
+const GPUS  = [
+  'Gráficos Integrados (Intel)', 'Gráficos Integrados (AMD)', 'Gráficos Integrados (Apple)',
+  'NVIDIA GTX 1050', 'NVIDIA GTX 1050 Ti', 'NVIDIA GTX 1060', 'NVIDIA GTX 1650', 'NVIDIA GTX 1660',
+  'NVIDIA RTX 2060', 'NVIDIA RTX 3050', 'NVIDIA RTX 3060', 'NVIDIA RTX 3070', 'NVIDIA RTX 4060',
+  'AMD Radeon RX 550', 'AMD Radeon RX 570', 'AMD Radeon RX 580', 'AMD Radeon RX 6600',
+]
+const COMMON_ISSUES = [
+  'No enciende', 'Pantalla negra', 'Pantalla rota', 'Pantalla con rayas',
+  'Teclado no funciona', 'Touchpad no funciona', 'Batería no carga',
+  'Batería dura poco', 'Se apaga solo', 'Sobrecalentamiento',
+  'Lento / se congela', 'No reconoce Wi-Fi', 'Puerto USB dañado',
+  'Sonido sin audio', 'Ventilador hace ruido', 'Bisagra rota',
+  'No lee disco duro', 'No arranca Windows / sistema operativo',
+]
+
 const COND_ACTIVE: Record<string, string> = {
   'Buena':   'bg-green-500 text-white border-green-500 shadow-md',
   'Regular': 'bg-yellow-500 text-white border-yellow-500 shadow-md',
@@ -98,13 +118,26 @@ function Card({ icon: Icon, color, title, children }: { icon: any; color: string
   )
 }
 
-const inp = "w-full px-4 py-3.5 text-base border-2 border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 bg-gray-50 focus:bg-white transition-all placeholder:text-gray-300"
-const Inp = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input {...p} className={inp} />
-const Sel = ({ children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select {...p} className={inp + " cursor-pointer"}>{children}</select>
+const inpBase = "w-full px-4 py-3.5 text-base border-2 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 bg-gray-50 focus:bg-white transition-all placeholder:text-gray-300"
+const inpOk  = inpBase + " border-gray-200"
+const inpErr = inpBase + " border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-400"
+
+interface FldProps extends React.InputHTMLAttributes<HTMLInputElement> { err?: string }
+const Inp = ({ err, ...p }: FldProps) => (
+  <>
+    <input {...p} className={err ? inpErr : inpOk} />
+    {err && <p className="text-xs text-red-500 font-bold mt-1" data-field-error="1">⚠️ {err}</p>}
+  </>
 )
-const Txt = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea {...p} rows={4} className={inp + " resize-none"} />
+const Sel = ({ children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <select {...p} className={inpOk + " cursor-pointer"}>{children}</select>
+)
+interface TxtProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> { err?: string }
+const Txt = ({ err, ...p }: TxtProps) => (
+  <>
+    <textarea {...p} rows={(p as any).rows || 4} className={(err ? inpErr : inpOk) + " resize-none"} />
+    {err && <p className="text-xs text-red-500 font-bold mt-1" data-field-error="1">⚠️ {err}</p>}
+  </>
 )
 const Lbl = ({ children }: { children: React.ReactNode }) => (
   <label className="block text-sm font-bold text-gray-600 mb-1.5 uppercase tracking-wide">{children}</label>
@@ -142,6 +175,7 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
   const [showClients, setShowClients] = useState(false)
   const [customAcc, setCustomAcc] = useState('')
   const [form, setForm] = useState(() => mkForm(initialData))
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -186,14 +220,46 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
 
   const submit = async (e?: React.MouseEvent) => {
     e?.preventDefault()
-    if (!form.clientId && !form.clientName.trim()) return toast.error('El nombre del cliente es requerido')
-    if (!form.issueReported.trim()) return toast.error('Describe la falla reportada')
+
+    // ── Validate fields ────────────────────────────────────────
+    const err: Record<string, string> = {}
+    const name = form.clientName.trim()
+    const phone = form.clientPhone.trim()
+    const doc = form.clientDocument.trim()
+
+    if (!form.clientId) {
+      if (!name) err.clientName = 'El nombre es obligatorio'
+      else if (/[0-9]/.test(name)) err.clientName = 'El nombre no puede contener números'
+      else if (/[^a-zA-Zà-ÿ\s'.\-]/.test(name)) err.clientName = 'El nombre solo debe contener letras'
+
+      if (phone && !/^9\d{8}$/.test(phone)) err.clientPhone = 'El teléfono debe ser de 9 dígitos (ej: 926 870 309)'
+
+      if (doc && doc.length === 8 && !/^\d{8}$/.test(doc)) err.clientDocument = 'DNI: 8 dígitos numéricos'
+      if (doc && doc.length === 11 && !/^\d{11}$/.test(doc)) err.clientDocument = 'RUC: 11 dígitos numéricos'
+      if (doc && doc.length !== 0 && doc.length !== 8 && doc.length !== 11) err.clientDocument = 'DNI (8 dígitos) o RUC (11 dígitos)'
+    }
+
+
+    if (!form.deviceBrand.trim()) err.deviceBrand = 'La marca es obligatoria'
+    if (!form.deviceModel.trim()) err.deviceModel = 'El modelo es obligatorio'
+    if (!form.issueReported.trim()) err.issueReported = 'Describe la falla reportada (campo obligatorio)'
+
+    setErrors(err)
+    if (Object.keys(err).length > 0) {
+      // Scroll to first error
+      const firstEl = document.querySelector('[data-field-error]') as HTMLElement
+      firstEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      toast.error('Por favor corrige los campos marcados en rojo')
+      return
+    }
+
     setLoading(true)
     try {
       const body = {
         clientId: form.clientId || undefined,
         clientName: !form.clientId ? form.clientName : undefined,
         clientPhone: !form.clientId ? form.clientPhone : undefined,
+        clientEmail: !form.clientId ? form.clientEmail : undefined,
         clientDocument: !form.clientId ? form.clientDocument : undefined,
         technicianId: form.technicianId || null,
         deviceType: form.deviceType, deviceBrand: form.deviceBrand,
@@ -208,15 +274,15 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
         const r = await fetch(`/api/servicios/${ticketId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!r.ok) throw new Error(await r.text())
         toast.success('✅ Ticket actualizado')
-        router.push(`/admin/servicios/${ticketId}`)
+        router.replace(`/admin/servicios/${ticketId}`)
         router.refresh()
       } else {
         const r = await fetch('/api/servicios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!r.ok) throw new Error(await r.text())
         const d = await r.json()
         toast.success('✅ Servicio creado')
-        router.push(`/admin/servicios/${d.id}`)
-        router.refresh()
+        // Use replace so the "nuevo" form is NOT in the browser history
+        router.replace(`/admin/servicios/${d.id}`)
       }
     } catch (err: any) {
       toast.error('❌ Error: ' + err.message)
@@ -255,7 +321,7 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
                 <input
                   type="text"
                   placeholder="Escribe para buscar... o llena los datos abajo si es nuevo"
-                  className={inp + " pl-12"}
+                  className={inpOk + " pl-12"}
                   value={clientSearch}
                   onChange={e => {
                     setClientSearch(e.target.value)
@@ -296,18 +362,19 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Lbl>Nombre Completo</Lbl>
-                  <Inp value={form.clientName} onChange={e => {
+                  <Inp value={form.clientName} err={errors.clientName} onChange={e => {
                       setForm(f => ({ ...f, clientName: e.target.value }))
                       setClientSearch(e.target.value)
+                      setErrors(er => ({ ...er, clientName: '' }))
                   }} placeholder="Ej. Juan Pérez" />
                 </div>
                 <div>
                   <Lbl>DNI / RUC (Opcional)</Lbl>
-                  <Inp value={form.clientDocument} onChange={setF('clientDocument')} placeholder="Documento" />
+                  <Inp value={form.clientDocument} err={errors.clientDocument} onChange={e => { setF('clientDocument')(e); setErrors(er => ({ ...er, clientDocument: '' })) }} placeholder="DNI (8) o RUC (11)" />
                 </div>
                 <div>
                   <Lbl>Teléfono</Lbl>
-                  <Inp value={form.clientPhone} onChange={setF('clientPhone')} placeholder="WhatsApp" />
+                  <Inp value={form.clientPhone} err={errors.clientPhone} onChange={e => { setF('clientPhone')(e); setErrors(er => ({ ...er, clientPhone: '' })) }} placeholder="9XXXXXXXX (9 dígitos)" maxLength={9} />
                 </div>
                 <div>
                   <Lbl>Correo (Opcional)</Lbl>
@@ -333,27 +400,40 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
             </div>
             <div>
               <Lbl>Marca</Lbl>
-              <Inp value={form.deviceBrand} onChange={setF('deviceBrand')} placeholder="Lenovo, HP, Dell..." />
+              <Inp list="brand-list" value={form.deviceBrand} err={errors.deviceBrand} 
+                onChange={e => { setF('deviceBrand')(e); setErrors(er => ({ ...er, deviceBrand: '' })) }} 
+                placeholder="HP, Lenovo, Dell..." />
+              <datalist id="brand-list">{BRANDS.map(b => <option key={b} value={b} />)}</datalist>
             </div>
             <div>
               <Lbl>Modelo</Lbl>
-              <Inp value={form.deviceModel} onChange={setF('deviceModel')} placeholder="ThinkPad E14..." />
+              <Inp value={form.deviceModel} err={errors.deviceModel}
+                onChange={e => { setF('deviceModel')(e); setErrors(er => ({ ...er, deviceModel: '' })) }}
+                placeholder="ThinkPad E14, Pavilion 15..." />
             </div>
             <div>
               <Lbl>CPU / Procesador</Lbl>
-              <Inp value={form.deviceProcessor} onChange={setF('deviceProcessor')} placeholder="Intel Core i5..." />
+              <Inp list="cpu-list" value={form.deviceProcessor} onChange={setF('deviceProcessor')}
+                placeholder="Intel Core i5 12va gen..." />
+              <datalist id="cpu-list">{CPUS.map(c => <option key={c} value={c} />)}</datalist>
             </div>
             <div>
               <Lbl>Memoria RAM</Lbl>
-              <Inp value={form.deviceRam} onChange={setF('deviceRam')} placeholder="8GB DDR4" />
+              <Inp list="ram-list" value={form.deviceRam} onChange={setF('deviceRam')}
+                placeholder="8GB DDR4" />
+              <datalist id="ram-list">{RAMS.map(r => <option key={r} value={r} />)}</datalist>
             </div>
             <div>
               <Lbl>Disco / Almacenamiento</Lbl>
-              <Inp value={form.deviceDisks} onChange={setF('deviceDisks')} placeholder="SSD 512GB..." />
+              <Inp list="disk-list" value={form.deviceDisks} onChange={setF('deviceDisks')}
+                placeholder="SSD 512GB..." />
+              <datalist id="disk-list">{DISKS.map(d => <option key={d} value={d} />)}</datalist>
             </div>
             <div>
-              <Lbl>GPU / Gráficos</Lbl>
-              <Inp value={form.deviceGpu} onChange={setF('deviceGpu')} placeholder="GTX 1650..." />
+              <Lbl>GPU / Gráficos (Opcional)</Lbl>
+              <Inp list="gpu-list" value={form.deviceGpu} onChange={setF('deviceGpu')}
+                placeholder="Integrados, GTX 1650, RTX 3060..." />
+              <datalist id="gpu-list">{GPUS.map(g => <option key={g} value={g} />)}</datalist>
             </div>
           </div>
         </Card>
@@ -414,16 +494,46 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
 
         {/* 5. Falla */}
         <Card icon={AlertCircle} color="rose" title="5 · Falla y Diagnóstico">
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Quick-tap common issues */}
             <div>
-              <Lbl>¿Cuál es el problema del equipo? *</Lbl>
-              <Txt value={form.issueReported} onChange={setF('issueReported')}
+              <Lbl>Problemas reportados (toca para seleccionar)</Lbl>
+              <div className="flex flex-wrap gap-2">
+                {COMMON_ISSUES.map(issue => {
+                  const isSelected = form.issueReported.includes(issue)
+                  return (
+                    <button key={issue} type="button"
+                      onClick={e => {
+                        e.preventDefault()
+                        setForm(f => {
+                          const cur = f.issueReported
+                          const updated = isSelected
+                            ? cur.split('\n').filter((l: string) => l.trim() !== issue).join('\n').trim()
+                            : (cur.trim() ? cur.trim() + '\n' + issue : issue)
+                          return { ...f, issueReported: updated }
+                        })
+                      }}
+                      className={`py-1.5 px-3 rounded-xl border-2 text-xs font-bold transition-all active:scale-95 select-none
+                        ${isSelected ? 'bg-rose-500 text-white border-rose-500 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-rose-300 hover:text-rose-600'}`}>
+                      {isSelected ? '✓ ' : ''}{issue}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Textarea to see / edit the composed description */}
+            <div>
+              <Lbl>Descripción completa del problema *</Lbl>
+              <Txt value={form.issueReported} onChange={setF('issueReported')} rows={4}
                 placeholder="La pantalla parpadea y se apaga sola... el cliente dice que lleva así varios días..." />
             </div>
+
+            {/* Technician's observations */}
             <div>
-              <Lbl>Observaciones físicas (lo que ves al recibirlo)</Lbl>
-              <Txt value={form.issueNotes} onChange={setF('issueNotes')}
-                placeholder="Golpe en esquina inferior, pantalla con rayaduras leves..." />
+              <Lbl>Diagnóstico / Observaciones del Técnico</Lbl>
+              <Txt value={form.issueNotes} onChange={setF('issueNotes')} rows={3}
+                placeholder="Al recibir: golpe en esquina, pantalla con rayaduras leves. Diagnóstico inicial: posible placa dañada..." />
             </div>
           </div>
         </Card>
@@ -492,7 +602,7 @@ export default function TicketEditForm({ initialData = null, ticketId }: { initi
         >
           Cancelar
         </Link>
-        <button type="submit" disabled={loading}
+        <button type="button" onClick={submit} disabled={loading}
           className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-2 text-lg active:scale-[0.98]">
           {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
           {isEdit ? 'Actualizar Orden' : 'Generar Orden'}

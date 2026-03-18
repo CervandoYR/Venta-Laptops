@@ -25,45 +25,47 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      clientId,
-      technicianId,
-      deviceType,
-      deviceBrand,
-      deviceModel,
-      deviceProcessor,
-      deviceRam,
-      deviceGpu,
-      deviceDisks,
-      devicePowerSupply,
-      deviceHasCharger,
-      issueReported,
-      issueNotes,
-      status,
-      totalAmount,
-      paidAmount,
-      paymentStatus,
-    } = body;
+
+    // ── Resolve client: use existing or auto-create a new one ──
+    let resolvedClientId: string | null = body.clientId || null;
+
+    if (!resolvedClientId && body.clientName?.trim()) {
+      const newClient = await prisma.client.create({
+        data: {
+          name: body.clientName.trim(),
+          phone: body.clientPhone?.trim() || null,
+          email: body.clientEmail?.trim() || null,
+          document: body.clientDocument?.trim() || null,
+        },
+      });
+      resolvedClientId = newClient.id;
+    }
+
+    if (!resolvedClientId) {
+      return new NextResponse("Se requiere un cliente para crear la orden.", { status: 400 });
+    }
 
     const ticket = await prisma.ticket.create({
       data: {
-        clientId,
-        technicianId: technicianId || null,
-        deviceType,
-        deviceBrand,
-        deviceModel,
-        deviceProcessor,
-        deviceRam,
-        deviceGpu,
-        deviceDisks,
-        devicePowerSupply,
-        deviceHasCharger: !!deviceHasCharger,
-        issueReported,
-        issueNotes,
-        status: status || "PENDING",
-        totalAmount: Number(totalAmount) || 0,
-        paidAmount: Number(paidAmount) || 0,
-        paymentStatus: paymentStatus || "PENDING",
+        clientId: resolvedClientId,
+        technicianId: body.technicianId || null,
+        deviceType: body.deviceType,
+        deviceBrand: body.deviceBrand,
+        deviceModel: body.deviceModel,
+        deviceProcessor: body.deviceProcessor,
+        deviceRam: body.deviceRam,
+        deviceGpu: body.deviceGpu,
+        deviceDisks: body.deviceDisks,
+        devicePowerSupply: body.devicePowerSupply,
+        deviceHasCharger: !!body.deviceHasCharger,
+        physicalCondition: body.physicalCondition ?? {},
+        accessories: body.accessories ?? {},
+        issueReported: body.issueReported,
+        issueNotes: body.issueNotes,
+        status: body.status || "PENDING",
+        totalAmount: Number(body.totalAmount) || 0,
+        paidAmount: Number(body.paidAmount) || 0,
+        paymentStatus: body.paymentStatus || "PENDING",
       },
       include: {
         client: true,

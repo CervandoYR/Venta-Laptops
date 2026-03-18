@@ -40,6 +40,17 @@
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
+
+  /* Admin pages: wider canvas for dense workflows (ST) */
+  .container-admin {
+    @apply mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Textures for filling whitespace */
+  .bg-admin-dots {
+    background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
 }
 
 @media print {

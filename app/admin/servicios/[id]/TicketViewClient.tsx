@@ -110,15 +110,17 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
   const hasPhysicalData = Object.keys(physicalCondition).length > 0
   const hasAccessories = Object.values(accessories).some(Boolean) || ticket.deviceHasCharger
 
+  const printCss = [
+    '@media print {',
+    '  @page { margin: 0; size: A4; }',
+    '  html, body { margin: 0 !important; padding: 0 !important; }',
+    '}',
+  ].join('\n')
+
   return (
     <>
       {/* ===================== PDF PRINT VIEW ========================= */}
-      <style>{`
-        @media print {
-          @page { margin: 0; size: A4; }
-          html, body { margin: 0 !important; padding: 0 !important; }
-        }
-      `}</style>
+      <style>{printCss}</style>
       <div className="hidden print:block p-8 bg-white text-black font-sans w-full text-sm">
         {/* Header */}
         <div className="flex justify-between items-center border-b-2 border-gray-900 pb-5 mb-6">
@@ -234,7 +236,8 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
       )}
 
       {/* ===================== WEB VIEW ========================= */}
-      <div className="container mx-auto px-4 py-8 max-w-5xl print:hidden">
+      <div className="min-h-screen bg-gray-50/50 bg-admin-dots">
+        <div className="container-admin py-8 print:hidden">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -269,7 +272,41 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
           </div>
         </div>
 
-        {/* ── TAB BAR ─────────────────────────────────────────── */}
+        {/* ── Payment Summary Bar ─────────────────────────────── */}
+        <div className={`flex flex-wrap items-center gap-3 mb-5 px-5 py-3.5 rounded-2xl border-2 ${
+          ticket.paymentStatus === 'PAID'    ? 'bg-green-50 border-green-200'
+          : ticket.paymentStatus === 'PARTIAL' ? 'bg-blue-50 border-blue-200'
+          : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className={`text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
+            ticket.paymentStatus === 'PAID'    ? 'bg-green-500 text-white border-green-500'
+            : ticket.paymentStatus === 'PARTIAL' ? 'bg-blue-500 text-white border-blue-500'
+            : 'bg-gray-400 text-white border-gray-400'
+          }`}>
+            {ticket.paymentStatus === 'PAID' ? '✅ Pagado completo' : ticket.paymentStatus === 'PARTIAL' ? '💵 Abono parcial' : '⏳ Pago pendiente'}
+          </div>
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <span className="text-gray-600">
+              Total: <strong className="text-gray-900">{formatPrice(ticket.totalAmount)}</strong>
+            </span>
+            {ticket.paidAmount > 0 && (
+              <span className="text-green-700">
+                Abonado: <strong>{formatPrice(ticket.paidAmount)}</strong>
+              </span>
+            )}
+            {ticket.totalAmount - ticket.paidAmount > 0 && ticket.paymentStatus !== 'PAID' && (
+              <span className={ticket.paymentStatus === 'PARTIAL' ? 'text-blue-700' : 'text-gray-500'}>
+                Saldo: <strong>{formatPrice(ticket.totalAmount - ticket.paidAmount)}</strong>
+              </span>
+            )}
+          </div>
+        </div>
+        {/* ── MAIN GRID ────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* LEFT COLUMN: Tabs & Core Info (2/3) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* ── TAB BAR ─────────────────────────────────────────── */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
           {[
             { key: 'checklist', label: 'Checklist', icon: ClipboardList },
@@ -291,16 +328,6 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
         {activeTab === 'checklist' && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* Left col: Client + Device + Problem */}
-            <div className="space-y-5">
-              {/* Client */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2 pb-2 border-b"><User className="w-4 h-4" /> Cliente</h3>
-                <p className="text-lg font-bold text-gray-900">{ticket.client?.name || 'Sin registro'} {ticket.client?.document ? <span className="text-sm text-gray-500 font-normal">({ticket.client.document})</span> : ''}</p>
-                <p className="text-gray-600 text-sm mt-1">📞 {ticket.client?.phone || 'Sin teléfono'}</p>
-                {ticket.client?.email && <p className="text-gray-400 text-sm">✉️ {ticket.client.email}</p>}
-              </div>
 
               {/* Device */}
               <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -400,7 +427,6 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
                 </div>
               </div>
             </div>
-          </div>
           {/* Tracking link card - full width below the grid */}
           <div className="mt-6 bg-gray-50 border border-gray-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -419,7 +445,7 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
 
         {/* ── TAB: ESTADO Y PAGO ──────────────────────────────── */}
         {activeTab === 'manage' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Estado */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -513,6 +539,57 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
             </div>
           </div>
         )}
+          </div>
+
+          {/* RIGHT SIDEBAR (1/3): acciones y link */}
+          <aside className="space-y-4 lg:sticky lg:top-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Acciones</p>
+              <div className="flex flex-col gap-2">
+                <Link
+                  href={`/admin/servicios/${ticket.id}/editar`}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors text-center"
+                >
+                  Editar ticket
+                </Link>
+                <button
+                  onClick={() => {
+                    const prev = document.title
+                    document.title = `ST-${ticket.number.toString().padStart(4, '0')} - Zona Notebook`
+                    window.print()
+                    setTimeout(() => { document.title = prev }, 1000)
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Imprimir / PDF
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 font-bold text-sm hover:bg-red-100 transition-colors"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Seguimiento</p>
+              <p className="text-xs text-gray-500 mb-2">Comparte este link con el cliente:</p>
+              <p className="text-sm text-blue-700 font-mono break-all">{trackingUrl}</p>
+              <button
+                onClick={copyLink}
+                className={`mt-3 w-full px-4 py-2.5 rounded-xl text-sm font-bold border transition-all
+                  ${copied ? 'bg-green-500 text-white border-green-500' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+              >
+                {copied ? '✅ ¡Copiado!' : '📋 Copiar link'}
+              </button>
+              <div className="mt-4 flex justify-center">
+                <TicketQR ticketId={ticket.id} baseUrl={trackingUrl.split('/seguimiento')[0]} />
+              </div>
+            </div>
+          </aside>
+        </div>
+        </div>
       </div>
     </>
   )
