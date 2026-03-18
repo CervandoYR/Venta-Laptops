@@ -34,6 +34,8 @@ export const metadata: Metadata = {
   },
 }
 
+import { Toaster } from 'react-hot-toast'
+
 export default function RootLayout({
   children,
 }: {
@@ -44,6 +46,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <ToastProvider>
+            <Toaster position="top-right" />
             
             <div className="flex flex-col min-h-screen">
               <Navbar />

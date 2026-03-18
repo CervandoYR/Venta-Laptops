@@ -30,13 +30,15 @@ export function Navbar() {
   const getUserName = () => session?.user?.name ? session.user.name.split(' ')[0] : 'Usuario'
   const isActive = (path: string) => path === '/' ? pathname === '/' : pathname.startsWith(path)
   const isAdmin = (session?.user as any)?.role === 'ADMIN'
+  const isAdminRoute = pathname?.startsWith('/admin')
 
   const whatsappNumber = "51924076526"
 
   return (
     <>
-      {/* TOP BAR */}
-      <div className="bg-gray-900 text-white py-2 text-[10px] md:text-xs font-medium relative z-[61] border-b border-gray-800">
+      {/* TOP BAR - hidden in admin */}
+      {!isAdminRoute && (
+      <div className="print:hidden bg-gray-900 text-white py-2 text-[10px] md:text-xs font-medium relative z-[61] border-b border-gray-800">
         <div className="container mx-auto px-4 flex justify-center md:justify-between items-center">
           
           <div className="flex items-center gap-4 md:gap-6">
@@ -71,9 +73,10 @@ export function Navbar() {
           </div>
         </div>
       </div>
+      )}
 
       {/* NAVBAR PRINCIPAL */}
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-[60]">
+      <nav className="print:hidden bg-white shadow-sm border-b sticky top-0 z-[60]">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col md:flex-row items-center justify-between py-3 gap-3 md:gap-8">
@@ -102,9 +105,11 @@ export function Navbar() {
               </div>
             </div>
 
-            <div className="w-full md:max-w-2xl flex-1">
-              <SearchBar />
-            </div>
+            {!isAdminRoute && (
+              <div className="w-full md:max-w-2xl flex-1">
+                <SearchBar />
+              </div>
+            )}
 
             <div className="hidden md:flex items-center gap-6 flex-shrink-0">
               {session ? (
@@ -137,7 +142,35 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center justify-center space-x-10 h-12 border-t border-gray-100 text-sm font-medium">
+          {isAdminRoute ? (
+            /* ── ADMIN NAV ─────────────────────────────────────── */
+            <div className="hidden md:flex items-center justify-start space-x-1 h-12 border-t border-gray-100 text-sm font-bold overflow-x-auto">
+              <Link href="/" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition whitespace-nowrap text-xs">
+                ← Ver Tienda
+              </Link>
+              <span className="w-px h-5 bg-gray-200 mx-1" />
+              {[
+                { href: '/admin', label: '🏠 Panel', exact: true },
+                { href: '/admin/servicios', label: '🔧 Servicios' },
+                { href: '/admin/clientes', label: '👥 Clientes ST' },
+                { href: '/admin/usuarios', label: '🛍️ Usuarios' },
+                { href: '/admin/tecnicos', label: '👨‍🔧 Técnicos' },
+                { href: '/admin/productos', label: '📦 Productos' },
+                { href: '/admin/pedidos', label: '🛒 Pedidos' },
+              ].map(item => {
+                const active = item.exact ? pathname === item.href : pathname?.startsWith(item.href)
+                return (
+                  <Link key={item.href} href={item.href}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition whitespace-nowrap text-sm
+                      ${active ? 'bg-blue-50 text-blue-700 font-extrabold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          ) : (
+            /* ── STORE NAV ─────────────────────────────────────── */
+            <div className="hidden md:flex items-center justify-center space-x-10 h-12 border-t border-gray-100 text-sm font-medium">
             <Link href="/" className={`flex items-center gap-1.5 transition ${isActive('/') ? 'text-blue-600 font-extrabold' : 'text-gray-600 hover:text-blue-600'}`}>
               <Home className="w-4 h-4" /> Inicio
             </Link>
@@ -182,7 +215,8 @@ export function Navbar() {
                 <ShieldCheck className="w-4 h-4" /> Panel Admin
               </Link>
             )}
-          </div>
+            </div>
+          )}
 
           {/* MENÚ MÓVIL */}
           {mobileMenuOpen && (

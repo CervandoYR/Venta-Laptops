@@ -1,163 +1,289 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/utils'
+import { 
+  Wrench, FileText, Users, ShoppingBag, ShoppingCart, 
+  MonitorSmartphone, LayoutDashboard, PlusCircle, Clock, 
+  Package, UserCheck, TrendingUp, ArrowRight, CheckCircle2,
+  AlertCircle, Truck
+} from 'lucide-react'
 
-// Forzamos dinamismo para ver datos frescos
 export const dynamic = 'force-dynamic'
 
 export default async function AdminPage() {
-  // Datos rápidos para el dashboard
   const productsCount = await prisma.product.count()
   const ordersCount = await prisma.order.count()
-  const usersCount = await prisma.user.count() // Contamos usuarios también
+  const usersCount = await prisma.user.count({ where: { role: 'USER' } })
+  const clientsCount = await prisma.client.count()
+  const ticketsCount = await prisma.ticket.count()
+  const pendingTicketsCount = await prisma.ticket.count({ where: { status: 'PENDING' } })
+  const inProgressTicketsCount = await prisma.ticket.count({ where: { status: 'IN_PROGRESS' } })
   
   const recentOrders = await prisma.order.findMany({
-    take: 5,
+    take: 8,
     orderBy: { createdAt: 'desc' },
     include: { user: true }
   })
 
-  // (Opcional) Calcular ingresos reales si deseas
-  // const income = await prisma.order.aggregate({ _sum: { total: true } })
+  const recentTickets = await prisma.ticket.findMany({
+    take: 8,
+    orderBy: { createdAt: 'desc' },
+    include: { client: true, technician: true }
+  })
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      PENDING: 'bg-orange-50 text-orange-700 border-orange-200',
+      IN_PROGRESS: 'bg-blue-50 text-blue-700 border-blue-200',
+      COMPLETED: 'bg-green-50 text-green-700 border-green-200',
+      DELIVERED: 'bg-gray-100 text-gray-600 border-gray-200',
+      CANCELLED: 'bg-red-50 text-red-700 border-red-200',
+    }
+    return map[status] || 'bg-gray-100 text-gray-600 border-gray-200'
+  }
+
+  const statusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      PENDING: 'Pendiente', IN_PROGRESS: 'En Proceso', COMPLETED: 'Terminado',
+      DELIVERED: 'Entregado', CANCELLED: 'Cancelado',
+    }
+    return map[status] || status
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Panel de Administración</h1>
-      
-      {/* Tarjetas de Resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-blue-600 text-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold opacity-90">Productos</h3>
-          <p className="text-4xl font-bold mt-2">{productsCount}</p>
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+
+        {/* ── Page Header ─────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 bg-blue-600 rounded-xl">
+                <LayoutDashboard className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Panel de Administración</h1>
+            </div>
+            <p className="text-gray-500 text-sm ml-14">Gestiona tu tienda y servicio técnico desde aquí.</p>
+          </div>
+          <Link href="/admin/servicios/nuevo"
+            className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200 text-sm">
+            <PlusCircle className="w-5 h-5" /> Nuevo Servicio
+          </Link>
         </div>
-        <div className="bg-green-600 text-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold opacity-90">Pedidos</h3>
-          <p className="text-4xl font-bold mt-2">{ordersCount}</p>
+
+        {/* ── Metrics Grid ─────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* Servicios */}
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+            <div className="absolute right-0 top-0 opacity-10 transform translate-x-6 -translate-y-6 group-hover:scale-110 transition-transform duration-500">
+              <Wrench className="w-32 h-32" />
+            </div>
+            <p className="text-blue-200 font-semibold text-xs uppercase tracking-wider mb-2 relative z-10">Servicios Técnicos</p>
+            <p className="text-5xl font-black relative z-10">{ticketsCount}</p>
+            <div className="mt-3 flex gap-3 relative z-10">
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">🟠 {pendingTicketsCount} pendientes</span>
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">🔵 {inProgressTicketsCount} en proceso</span>
+            </div>
+          </div>
+
+          {/* Productos */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:border-blue-200 hover:shadow-md transition-all">
+            <p className="text-gray-400 font-semibold text-xs uppercase tracking-wider mb-2">Productos</p>
+            <p className="text-4xl font-black text-gray-800">{productsCount}</p>
+            <p className="text-xs text-gray-400 mt-2">En inventario</p>
+            <Package className="w-12 h-12 text-gray-100 absolute right-4 bottom-4 group-hover:text-blue-100 transition-colors" />
+          </div>
+
+          {/* Pedidos */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:border-green-200 hover:shadow-md transition-all">
+            <p className="text-gray-400 font-semibold text-xs uppercase tracking-wider mb-2">Pedidos</p>
+            <p className="text-4xl font-black text-gray-800">{ordersCount}</p>
+            <p className="text-xs text-gray-400 mt-2">Órdenes recibidas</p>
+            <ShoppingCart className="w-12 h-12 text-gray-100 absolute right-4 bottom-4 group-hover:text-green-100 transition-colors" />
+          </div>
+
+          {/* Clientes ST */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:border-purple-200 hover:shadow-md transition-all">
+            <p className="text-gray-400 font-semibold text-xs uppercase tracking-wider mb-2">Clientes ST</p>
+            <p className="text-4xl font-black text-gray-800">{clientsCount}</p>
+            <p className="text-xs text-gray-400 mt-2">Clientes de servicio técnico</p>
+            <UserCheck className="w-12 h-12 text-gray-100 absolute right-4 bottom-4 group-hover:text-purple-100 transition-colors" />
+          </div>
         </div>
-        <div className="bg-orange-500 text-white p-6 rounded-lg shadow-lg">
-            <h3 className="text-lg font-semibold opacity-90">Usuarios</h3>
-            <p className="text-4xl font-bold mt-2">{usersCount}</p>
+
+        {/* ── Servicio Técnico Hero + Quick Access ──────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* 🛠️ Main Module Card */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-200 relative overflow-hidden h-full">
+              <div className="absolute top-0 right-0 p-6 opacity-[0.04]">
+                <MonitorSmartphone className="w-64 h-64" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Módulo Principal</span>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Wrench className="w-6 h-6 text-blue-600" />
+                  Servicio Técnico
+                </h2>
+                <p className="text-gray-400 mb-6 text-sm max-w-lg">
+                  Gestiona reparaciones, asigna técnicos, genera tickets y da seguimiento en tiempo real.
+                </p>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Link href="/admin/servicios/nuevo"
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl shadow-md transition-all flex flex-col items-center justify-center text-center group active:scale-95">
+                    <PlusCircle className="w-7 h-7 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="font-semibold text-xs">Nuevo Ticket</span>
+                  </Link>
+                  <Link href="/admin/servicios"
+                    className="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center text-center group active:scale-95">
+                    <FileText className="w-7 h-7 mb-2 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <span className="font-semibold text-xs">Ver Todos</span>
+                  </Link>
+                  <Link href="/admin/servicios?status=PENDING"
+                    className="bg-orange-50 hover:bg-orange-100 border border-orange-100 text-orange-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center text-center group active:scale-95">
+                    <Clock className="w-7 h-7 mb-2 text-orange-500 group-hover:scale-110 transition-transform" />
+                    <span className="font-semibold text-xs">Pendientes ({pendingTicketsCount})</span>
+                  </Link>
+                  <Link href="/admin/tecnicos"
+                    className="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 p-4 rounded-xl transition-all flex flex-col items-center justify-center text-center group active:scale-95">
+                    <Users className="w-7 h-7 mb-2 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <span className="font-semibold text-xs">Técnicos</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Access Sidebar */}
+          <div className="flex flex-col gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 flex-1">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Tienda Online</p>
+              <div className="space-y-2">
+                <Link href="/admin/productos" className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all group">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ShoppingBag className="w-4 h-4"/></div>
+                  <span className="font-medium text-sm text-gray-700">Inventario</span>
+                  <ArrowRight className="w-4 h-4 text-gray-300 ml-auto group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/admin/pedidos" className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all group">
+                  <div className="p-2 bg-green-50 text-green-600 rounded-lg"><ShoppingCart className="w-4 h-4"/></div>
+                  <span className="font-medium text-sm text-gray-700">Pedidos</span>
+                  <ArrowRight className="w-4 h-4 text-gray-300 ml-auto group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-4 mb-3">Personas</p>
+              <div className="space-y-2">
+                <Link href="/admin/clientes" className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all group">
+                  <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><UserCheck className="w-4 h-4"/></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-gray-700 leading-tight">Clientes ST</p>
+                    <p className="text-xs text-gray-400">Servicio técnico</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-300 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/admin/usuarios" className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all group">
+                  <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Users className="w-4 h-4"/></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-gray-700 leading-tight">Usuarios</p>
+                    <p className="text-xs text-gray-400">Cuentas e-commerce</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-300 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Accesos Rápidos</h2>
-      
-      {/* BOTONES DE GESTIÓN (Ahora son 5 columnas en PC grande) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
-        
-        {/* 1. Productos */}
-        <Link 
-          href="/admin/productos"
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all flex flex-col items-center justify-center text-center group"
-        >
-          <div className="p-4 bg-blue-100 rounded-full mb-3 group-hover:bg-blue-200 text-blue-600">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-          </div>
-          <span className="font-bold text-gray-700 group-hover:text-blue-600">Productos</span>
-        </Link>
-
-        {/* 2. Pedidos */}
-        <Link 
-          href="/admin/pedidos"
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all flex flex-col items-center justify-center text-center group"
-        >
-          <div className="p-4 bg-green-100 rounded-full mb-3 group-hover:bg-green-200 text-green-600">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-          </div>
-          <span className="font-bold text-gray-700 group-hover:text-green-600">Pedidos</span>
-        </Link>
-
-        {/* 3. USUARIOS (NUEVO) */}
-        <Link 
-          href="/admin/usuarios"
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all flex flex-col items-center justify-center text-center group"
-        >
-          <div className="p-4 bg-orange-100 rounded-full mb-3 group-hover:bg-orange-200 text-orange-600">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-          </div>
-          <span className="font-bold text-gray-700 group-hover:text-orange-600">Usuarios</span>
-        </Link>
-
-        {/* 4. Configurar Hero */}
-        <Link 
-          href="/admin/configuracion"
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all flex flex-col items-center justify-center text-center group"
-        >
-          <div className="p-4 bg-purple-100 rounded-full mb-3 group-hover:bg-purple-200 text-purple-600">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-          </div>
-          <span className="font-bold text-gray-700 group-hover:text-purple-600">Portada</span>
-        </Link>
-
-        {/* 5. Volver a Tienda */}
-        <Link 
-          href="/"
-          className="bg-gray-50 p-6 rounded-xl shadow-inner border border-gray-200 hover:bg-gray-100 transition-all flex flex-col items-center justify-center text-center group"
-        >
-           <div className="p-4 bg-gray-200 rounded-full mb-3 text-gray-600">
-             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-          </div>
-          <span className="font-bold text-gray-600">Ir a Tienda</span>
-        </Link>
-
-      </div>
-
-      {/* Tabla Resumen de Últimos Pedidos */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
-            <h3 className="font-bold text-gray-700">Últimos Pedidos Recibidos</h3>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {recentOrders.map((order) => (
-                        <tr key={order.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {order.id.slice(-6).toUpperCase()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {/* 🔥 Corrección crítica: Evita crash si es Invitado (user es null) */}
-                                {order.shippingName || order.user?.name || 'Cliente Invitado'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
-                                {formatPrice(order.total)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 
-                                      order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
-                                      'bg-gray-100 text-gray-800'}`}>
-                                    {order.status}
-                                </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(order.createdAt).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-900">
-                                <Link href={`/admin/pedidos/${order.id}`}>Ver detalle</Link>
-                            </td>
-                        </tr>
-                    ))}
-                    {recentOrders.length === 0 && (
-                        <tr>
-                            <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
-                                No hay pedidos recientes.
-                            </td>
-                        </tr>
+        {/* ── Recent Services + Recent Orders ──── */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          
+          {/* Last Services */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-base">
+                <Wrench className="w-5 h-5 text-blue-500" />Últimos Servicios
+              </h3>
+              <Link href="/admin/servicios" className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+                Ver todos <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {recentTickets.map((ticket) => (
+                <Link key={ticket.id} href={`/admin/servicios/${ticket.id}`}
+                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/70 transition-colors group">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+                    #{ticket.number.toString().padStart(3, '0')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{ticket.client?.name || 'Sin cliente'}</p>
+                    <p className="text-xs text-gray-400 truncate">{ticket.deviceBrand} {ticket.deviceModel} · {new Date(ticket.createdAt).toLocaleDateString('es-PE')}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${statusBadge(ticket.status)}`}>
+                      {statusLabel(ticket.status)}
+                    </span>
+                    {ticket.technician && (
+                      <p className="text-xs text-gray-400">{ticket.technician.name}</p>
                     )}
-                </tbody>
-            </table>
+                  </div>
+                </Link>
+              ))}
+              {recentTickets.length === 0 && (
+                <div className="px-6 py-12 text-center">
+                  <Wrench className="w-10 h-10 mx-auto text-gray-200 mb-3" />
+                  <p className="text-sm text-gray-400">No hay servicios técnicos aún.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Last Orders */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-base">
+                <ShoppingCart className="w-5 h-5 text-green-500" />Últimos Pedidos Tienda
+              </h3>
+              <Link href="/admin/pedidos" className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+                Ver todos <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {recentOrders.map((order) => (
+                <Link key={order.id} href={`/admin/pedidos/${order.id}`}
+                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/70 transition-colors group">
+                  <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center flex-shrink-0 group-hover:bg-green-100 transition-colors">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{order.shippingName || order.user?.name || 'Invitado'}</p>
+                    <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString('es-PE')}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="font-black text-sm text-gray-900">{formatPrice(order.total)}</span>
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full border
+                      ${order.status === 'DELIVERED' ? 'bg-green-50 text-green-700 border-green-200' :
+                        order.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                        order.status === 'SHIPPED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                      {order.status === 'PENDING' ? 'Pendiente' : order.status === 'DELIVERED' ? 'Entregado' : order.status === 'SHIPPED' ? 'Enviado' : order.status}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+              {recentOrders.length === 0 && (
+                <div className="px-6 py-12 text-center">
+                  <ShoppingCart className="w-10 h-10 mx-auto text-gray-200 mb-3" />
+                  <p className="text-sm text-gray-400">No hay pedidos recientes.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   )

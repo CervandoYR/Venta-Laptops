@@ -1,0 +1,2 @@
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "physicalCondition" JSONB;
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "accessories" JSONB;

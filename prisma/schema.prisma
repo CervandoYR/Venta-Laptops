@@ -30,6 +30,21 @@ enum ProductCondition {
   REFURBISHED
 }
 
+enum TicketStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+enum TicketPaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
 // --- MODELOS ---
 
 model StoreConfig {
@@ -165,4 +180,74 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+// --- SERVICIO TECNICO ---
+
+model Technician {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  whatsapp  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets   Ticket[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  document  String?  // DNI, RUC, etc.
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets   Ticket[]
+}
+
+model Ticket {
+  id              String   @id @default(cuid())
+  number          Int      @default(autoincrement())
+  
+  // Relations
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id])
+  technicianId    String?
+  technician      Technician? @relation(fields: [technicianId], references: [id])
+
+  // Device Info
+  deviceType      String?   
+  deviceBrand     String?
+  deviceModel     String?
+  deviceProcessor String?
+  deviceRam       String?
+  deviceGpu       String?
+  deviceDisks     Json?    
+  devicePowerSupply String? 
+  deviceHasCharger  Boolean @default(false)
+  physicalCondition Json?   // { pantalla: 'Buena', teclado: 'Regular', ... }
+  accessories       Json?   // { 'Cargador': true, 'Mouse': false, ... }
+
+  // Issue
+  issueReported   String?   @db.Text
+  issueNotes      String?  @db.Text
+
+  // Status & Payment
+  status          TicketStatus @default(PENDING)
+  totalAmount     Float      @default(0)
+  paidAmount      Float      @default(0)
+  paymentStatus   TicketPaymentStatus @default(PENDING)
+  invoiced        Boolean  @default(false)  // Fue facturado
+  notifiedClient  Boolean  @default(false)  // Notificado por WhatsApp
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([technicianId])
+  @@index([status])
 }
