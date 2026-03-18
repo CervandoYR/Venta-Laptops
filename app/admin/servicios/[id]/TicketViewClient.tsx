@@ -199,7 +199,7 @@ export default function TicketViewClient({ ticket, technicians }: { ticket: any,
             <div className="flex justify-between mt-2 pt-2 border-t border-gray-900"><span className="font-black text-sm">Saldo pendiente:</span><span className="font-black text-sm">{formatPrice(ticket.totalAmount - ticket.paidAmount)}</span></div>
           </div>
         </div>
-        <p className="mt-8 text-center text-[10px] text-gray-400">* El diagnóstico técnico tiene un valor base si no se acepta la reparación. · Equipos no recogidos en 30 días quedan a disposición del establecimiento.</p>
+        <p className="mt-8 text-center text-[10px] text-gray-400 font-bold uppercase tracking-tight leading-tight">* El diagnóstico técnico tiene un valor base si no se acepta la reparación. · Equipos no recogidos en 30 días el establecimiento no se hace responsable por pérdida o deterioro.</p>
 
         {/* QR + tracking link in PDF */}
         <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between">
